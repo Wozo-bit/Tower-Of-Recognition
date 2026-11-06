@@ -11,6 +11,7 @@ var _gold_label: Label
 var _message: Label
 var _stats_overlay: PanelContainer
 var _stats_panel: StatAllocationPanel
+var _class_change_panel: ClassChangePanel
 var _class_screen: ClassSelectionScreen
 var _gear_panel: GearPanel
 var _skills_panel: SkillsPanel
@@ -199,6 +200,12 @@ func _init() -> void:
 	_advance_panel.closed.connect(_rebuild)
 	add_child(_advance_panel)
 
+	_class_change_panel = ClassChangePanel.new()
+	_class_change_panel.closed.connect(_rebuild)
+	_class_change_panel.changed.connect(func(member, def):
+		_say("%s is now: %s!" % [member.character_name, def.display_name]))
+	add_child(_class_change_panel)
+
 	_class_screen = ClassSelectionScreen.new()
 	add_child(_class_screen)
 	_class_screen.closed.connect(_rebuild)
@@ -224,7 +231,7 @@ func open_manage() -> void:
 
 
 func close() -> void:
-	if _class_screen.visible or _stats_overlay.visible or _gear_panel.visible or _skills_panel.visible \
+	if _class_change_panel.visible or _class_screen.visible or _stats_overlay.visible or _gear_panel.visible or _skills_panel.visible \
 			or _manage_panel.visible or _bestiary_panel.visible or _quest_panel.visible or _advance_panel.visible or _guild_panel.visible \
 			or _divinity_panel.visible or _guide_panel.visible:
 		return
@@ -233,7 +240,7 @@ func close() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not visible or _gear_panel.visible or _skills_panel.visible or _manage_panel.visible \
+	if not visible or _class_change_panel.visible or _gear_panel.visible or _skills_panel.visible or _manage_panel.visible \
 			or _bestiary_panel.visible or _quest_panel.visible or _advance_panel.visible or _guild_panel.visible \
 			or _divinity_panel.visible or _guide_panel.visible:
 		return
@@ -275,6 +282,8 @@ func _rebuild() -> void:
 				member.character_name, member.level, member.class_title()])
 			note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			row.add_child(note)
+			var stats_btn := _stats_button(member)
+			row.add_child(stats_btn)
 			var gear_btn := Button.new()
 			gear_btn.text = "Gear"
 			gear_btn.pressed.connect(func(): _gear_panel.open(member))
@@ -388,14 +397,7 @@ func _member_row(member: CharacterData) -> Control:
 			rename_btn.text = "Rename"
 			rename_btn.pressed.connect(_open_rename.bind(member))
 			buttons.add_child(rename_btn)
-		var stats_btn := Button.new()
-		stats_btn.text = "Stats" + (" (%d)" % member.unspent_points if member.unspent_points > 0 else "")
-		if member.unspent_points > 0:
-			stats_btn.modulate = Color(1, 0.9, 0.4)
-		stats_btn.pressed.connect(func():
-			_stats_panel.bind(member)
-			_stats_overlay.show())
-		buttons.add_child(stats_btn)
+		buttons.add_child(_stats_button(member))
 		var skills_btn := Button.new()
 		skills_btn.text = "Skills" + (" (%d)" % member.skill_picks if member.skill_picks > 0 else "")
 		if member.skill_picks > 0:
@@ -419,7 +421,7 @@ func _member_row(member: CharacterData) -> Control:
 					sbtn.pressed.connect(_confirm_secret_class.bind(member, sdef))
 				else:
 					sbtn.disabled = true
-					sbtn.tooltip_text = "Needs %s (you have %d%%). A respec can help." % [
+					sbtn.tooltip_text = "Needs %s (you have %d%%). Resetting your stats is free." % [
 						sdef.requirement_text(), roundi(sdef.qualification_share(member.stats) * 100)]
 				buttons.add_child(sbtn)
 		if member.can_choose_class():
@@ -435,13 +437,13 @@ func _member_row(member: CharacterData) -> Control:
 			adv_btn.tooltip_text = "Advance to a stronger class (needs its trial)."
 			adv_btn.pressed.connect(func(): _advance_panel.open(member))
 			buttons.add_child(adv_btn)
-		# The one free class change, once the tier-2 gate's floor is beaten.
-		if member.class_change_open():
+		# Free, any time out of battle (Hayden 2026-11-05).
+		if member.can_change_class():
 			var change_btn := Button.new()
 			change_btn.text = "⇄ Change class"
 			change_btn.modulate = Color(0.75, 0.85, 1)
-			change_btn.tooltip_text = "Once per character, before advancing: give up this class, respec for free, and choose again."
-			change_btn.pressed.connect(_confirm_class_change.bind(member))
+			change_btn.tooltip_text = "Free: switch to any class at the tier you've earned."
+			change_btn.pressed.connect(func(): _class_change_panel.open(member))
 			buttons.add_child(change_btn)
 		# NG+ Ascension: shown on a top-tier line once you're in New Game+.
 		if GameState.ng_plus_cycle >= 1 and def and def.tier >= ClassRegistry.ASCENSION_GATE.tier 				and member.class_id != &"ascendant" and not member.ascended:
@@ -454,6 +456,17 @@ func _member_row(member: CharacterData) -> Control:
 			asc_btn.pressed.connect(_confirm_ascend.bind(member))
 			buttons.add_child(asc_btn)
 	return panel
+
+
+func _stats_button(member: CharacterData) -> Button:
+	var b := Button.new()
+	b.text = "Stats" + (" (%d)" % member.unspent_points if member.unspent_points > 0 else "")
+	if member.unspent_points > 0:
+		b.modulate = Color(1, 0.9, 0.4)
+	b.pressed.connect(func():
+		_stats_panel.bind(member)
+		_stats_overlay.show())
+	return b
 
 
 func _confirm_ascend(member: CharacterData) -> void:
@@ -502,25 +515,6 @@ func _open_rename(member: CharacterData) -> void:
 	add_child(dlg)
 	dlg.popup_centered()
 	edit.grab_focus()
-
-
-func _confirm_class_change(member: CharacterData) -> void:
-	var dlg := ConfirmationDialog.new()
-	dlg.title = "Change class"
-	dlg.dialog_text = ("%s gives up the %s?
-
-You get a free respec, then choose a class again (or an unlocked secret class)."
-		+ "
-Learned skills stay; class skills change. This is your only free change.") % [
-		member.character_name, member.get_class_def().display_name]
-	dlg.confirmed.connect(func():
-		if GameState.release_class(member):
-			_say("%s can choose a new class. Respec first if you like (free)." % member.character_name)
-		_rebuild()
-		dlg.queue_free())
-	dlg.canceled.connect(dlg.queue_free)
-	add_child(dlg)
-	dlg.popup_centered()
 
 
 func _confirm_secret_class(member: CharacterData, def: ClassDef) -> void:

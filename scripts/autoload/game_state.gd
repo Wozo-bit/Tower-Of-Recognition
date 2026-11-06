@@ -943,8 +943,8 @@ func enter_floor(n: int) -> void:
 	if party_size() > room_before:
 		_party_grows()
 	var gate: int = ClassRegistry.ADVANCEMENT_GATES[2].floor
-	if n == gate + 1 and battle_party().any(func(m): return m.class_change_open()):
-		quests.messages.append("Advancement is open. Each climber may also change class once, with a free respec (%s)." % InputBindings.key_name("party_menu"))
+	if n == gate + 1 and battle_party().any(func(m): return m.advancement_open()):
+		quests.messages.append("Advancement is open (%s)." % InputBindings.key_name("party_menu"))
 	floor_seed = randi()
 	floor_ready = false
 	floor_enemies.clear()
@@ -1794,16 +1794,46 @@ func unlocked_secret_classes() -> Array:
 	return out
 
 
-## The player character switches to an unlocked secret class (stat gate applies).
-## The one free class change: they give up their class (gear locked to it
-## goes back in the bag) and pick again.
-func release_class(member: CharacterData) -> bool:
-	if not member.release_class():
+## Every class `member` could change to, by name: the whole of the tier they've
+## earned, with no trial or stat check (Hayden 2026-11-05). Route-only classes
+## need the route. Secret lines are the player's, once unlocked. Demigods' own
+## classes are never on offer.
+func class_change_options(member: CharacterData) -> Array[ClassDef]:
+	var out: Array[ClassDef] = []
+	if not member.can_change_class():
+		return out
+	var unlocked := unlocked_secret_classes() if member == player else []
+	for def in ClassRegistry.get_all():
+		if def.id == member.class_id or def.unique_to != &"" or not def.route_allows():
+			continue
+		var root := ClassRegistry.get_class_def(ClassRegistry.root_of(def.id))
+		if root.is_secret and not unlocked.has(root.id):
+			continue
+		if def.tier == member.earned_tier() or def.id == &"ascendant":
+			out.append(def)
+	out.sort_custom(func(a, b): return a.display_name < b.display_name)
+	return out
+
+
+## What happens to spent points when `member` changes class.
+enum ClassChangeStats { KEEP, REFUND, AUTO_SPEND }
+
+
+func change_class(member: CharacterData, def: ClassDef, points: int = ClassChangeStats.KEEP) -> bool:
+	if not class_change_options(member).has(def) or not member.change_class(def):
 		return false
+	# Gear locked to the old class goes back in the bag.
 	for slot in member.equipment.keys():
 		if not member.get_equipped(slot).can_equip(member):
 			unequip_to_bag(member, slot)
+	if points != ClassChangeStats.KEEP:
+		member.respec()
+	if points == ClassChangeStats.AUTO_SPEND and member.unspent_points > 0:
+		member.apply_allocation(member.auto_spend_plan(def, member.unspent_points))
 	return true
+
+
+## The player character switches to an unlocked secret class (stat gate applies).
 
 
 func take_secret_class(member: CharacterData, class_id: StringName) -> bool:

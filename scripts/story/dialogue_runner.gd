@@ -58,6 +58,9 @@ func start(id: StringName, with: CharacterData = null, being: StringName = &"", 
 	return true
 
 
+const PLAYER_SPEAKER := "{player}"
+
+
 ## Which node a dialogue opens on right now (its "start" list is checked in order).
 static func start_node(d: Dictionary) -> String:
 	var start = d.get("start", "")
@@ -69,7 +72,10 @@ static func start_node(d: Dictionary) -> String:
 	return ""
 
 
+## The player's own lines read "You", never their name (Hayden 2026-11-05).
 func speaker() -> String:
+	if raw_speaker() == PLAYER_SPEAKER:
+		return "You"
 	return fill(_node().get("speaker", ""), _npc_name())
 
 

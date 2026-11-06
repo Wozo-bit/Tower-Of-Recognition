@@ -333,28 +333,48 @@ func test_quest_classes() -> void:
 	GameState.reset_run()
 
 
-## One free class change after the tier-2 gate's floor, while still tier 1.
+## Free class changes, any time, at your earned tier (Hayden 2026-11-05).
 func test_class_change() -> void:
 	print("Free class change")
 	_fresh()
 	var c := _veteran(&"mage", MAGE)
-	GameState.highest_floor = 20
-	check(not c.class_change_open(), "not before floor 20 is beaten")
-	GameState.highest_floor = 21
-	check(c.class_change_open(), "open on floor 21")
+	var spent := c.stats.total_allocated()
+	var tank := ClassRegistry.get_class_def(&"tank")
 	c.gold = 0
-	check(GameState.release_class(c) and not c.has_class() and c.can_choose_class(), "give up the class...")
-	check(c.next_respec_cost() == 0 and c.respec(), "...respec for free...")
-	c.apply_allocation({ Stats.Type.HEALTH: c.unspent_points / 2, Stats.Type.STAMINA: c.unspent_points - c.unspent_points / 2 })
-	check(c.choose_class(ClassRegistry.get_class_def(&"tank")) and c.class_id == &"tank", "...and choose again")
-	check(not c.class_change_open(), "only once")
+	check(c.can_change_class(), "open from the start")
+	check(GameState.class_change_options(c).has(tank), "every class at your tier")
+	check(not GameState.class_change_options(c).has(c.get_class_def()), "not the one you're in")
+	check(GameState.change_class(c, tank) and c.class_id == &"tank", "changed, with stats that don't qualify")
+	check(c.stats.total_allocated() == spent and c.gold == 0, "keep: stats stay, and it's free")
+	check(GameState.change_class(c, ClassRegistry.get_class_def(&"mage"), GameState.ClassChangeStats.REFUND) and c.stats.total_allocated() == 0, "refund: points back")
+	check(c.unspent_points >= spent, "refund: points to spend")
+	check(GameState.change_class(c, tank, GameState.ClassChangeStats.AUTO_SPEND) and c.unspent_points == 0 and tank.qualifies(c.stats), "auto-spend: spent toward the new class")
+	check(GameState.change_class(c, ClassRegistry.get_class_def(&"mage")), "and back again: as often as you like")
+	# Advanced: any class at your tier, no trial.
 	var adv := _veteran(&"mage", MAGE)
 	adv.class_id = &"pyromancer"
-	check(not adv.class_change_open(), "not after advancing")
-	GameState.player.class_change_used = true
-	GameState.save_game()
-	GameState.load_game(1)
-	check(GameState.player.class_change_used, "saved")
+	var options := GameState.class_change_options(adv)
+	check(not options.is_empty() and options.all(func(d): return d.tier == 2), "tier 2 stays at tier 2")
+	var other: ClassDef = options.filter(func(d): return ClassRegistry.root_of(d.id) != &"mage")[0]
+	check(not GameState.quests.is_done(CharacterData.trial_id(other)) and GameState.change_class(adv, other) and adv.class_id == other.id, "no trial needed")
+	check(adv.get_class_def().tier == 2, "tier kept")
+	# Off limits: secret lines until unlocked, the player's alone; route-only; demigods.
+	var secret := ClassRegistry.get_all().filter(func(d): return d.is_secret and not d.ng_plus_only)
+	for s in secret:
+		check(not GameState.class_change_options(GameState.player).has(s), "%s stays hidden" % s.id)
+	for d in GameState.class_change_options(c) + options:
+		check(d.unique_to == &"" and d.route_allows(), "%s is open to anyone" % d.id)
+	var demigod := CharacterData.new()
+	demigod.class_id = ClassRegistry.get_all().filter(func(d): return d.unique_to != &"")[0].id
+	check(not demigod.can_change_class() and GameState.class_change_options(demigod).is_empty(), "a demigod's class is theirs")
+	# Gear locked to the old class goes back in the bag.
+	var unique := GearItem.new()
+	unique.slot = GearItem.Slot.WEAPON
+	unique.class_lock = &"mage"
+	var m := _veteran(&"mage", MAGE)
+	m.equip(unique)
+	GameState.change_class(m, tank)
+	check(m.get_equipped(GearItem.Slot.WEAPON) != unique, "class-locked gear comes off")
 
 
 func test_save_roundtrip() -> void:

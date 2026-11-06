@@ -369,7 +369,7 @@ static func _build() -> Dictionary:
 		SkillDef.make(&"ashen_nova", "Ashen Nova", "Cinders burst over every enemy.",
 			{"elements": [EL.FIRE] as Array[int], "mp_cost": 12, "damage_type": D.MAGIC, "targeting": T.ENEMY_ALL, "power": 0.85}),
 		SkillDef.make(&"cinder_cleave", "Cinder Cleave", "A burning sweep across every enemy, steel or spell (whichever is stronger).",
-			{"elements": [EL.FIRE, EL.SLASH] as Array[int], "mp_cost": 14, "damage_type": D.MELEE, "power": 1.1, "adaptive": true, "targeting": T.ENEMY_ALL}),
+			{"elements": [EL.FIRE, EL.SLASH] as Array[int], "mp_cost": 14, "damage_type": D.MELEE, "power": 1.1, "adaptive": true, "ignores_row": true, "targeting": T.ENEMY_ALL}),
 		SkillDef.make(&"ashen_ward", "Ashen Ward", "A veil of cinders: the whole party takes 30% less damage for 3 turns.",
 			{"mp_cost": 16, "effect": E.STATUS, "targeting": T.ALLY_ALL, "status_id": &"ward", "status_turns": 3}),
 		SkillDef.make(&"wyrmflame", "Wyrmflame", "The wyrm's fire through the blade: a huge hit that ignores half of defense.",
@@ -432,8 +432,8 @@ static func _build() -> Dictionary:
 		SkillDef.make(&"earthshatter", "Earthshatter", "A blow that shakes every enemy, front row or back.",
 			{"elements": [EL.EARTH, EL.BLUNT] as Array[int], "mp_cost": 14, "damage_type": D.MELEE, "targeting": T.ENEMY_ALL, "power": 1.0, "ignores_row": true,
 			"learnable": true, "tier": 2}),
-		SkillDef.make(&"arcane_barrage", "Arcane Barrage", "Magic bolts hit every enemy.",
-			{"mp_cost": 14, "damage_type": D.MAGIC, "targeting": T.ENEMY_ALL, "power": 1.0, "learnable": true, "tier": 2}),
+		SkillDef.make(&"arcane_barrage", "Arcane Barrage", "3-5 magic bolts on every enemy.",
+			{"hits_min": 3, "hits_max": 5, "mp_cost": 14, "damage_type": D.MAGIC, "targeting": T.ENEMY_ALL, "power": 1.0, "learnable": true, "tier": 2}),
 		# --- Legendary ---
 		SkillDef.make(&"second_wind", "Second Wind", "Recover 50% of your max HP.",
 			{"mp_cost": 16, "effect": E.HEAL, "targeting": T.SELF, "power": 0.0, "heal_pct_max_hp": 0.5,
@@ -664,15 +664,15 @@ static func _build() -> Dictionary:
 		SkillDef.make(&"battle_fury", "Battle Fury", "Rage: deal 30% more damage for 3 turns.",
 			{"mp_cost": 6, "effect": E.STATUS, "targeting": T.SELF, "status_id": &"fury", "status_turns": 3}),
 		# monk
-		SkillDef.make(&"flurry", "Flurry", "A storm of fists. +30% crit chance.",
-			{"elements": [EL.BLUNT] as Array[int], "mp_cost": 4, "damage_type": D.MELEE, "power": 1.4, "bonus_crit": 0.3}),
+		SkillDef.make(&"flurry", "Flurry", "A storm of fists, 3-5 hits. +30% crit chance.",
+			{"hits_min": 3, "hits_max": 5, "elements": [EL.BLUNT] as Array[int], "mp_cost": 4, "damage_type": D.MELEE, "power": 1.4, "bonus_crit": 0.3}),
 		SkillDef.make(&"inner_peace", "Inner Peace", "Breathe: recover 25% of your max HP.",
 			{"mp_cost": 6, "effect": E.HEAL, "targeting": T.SELF, "power": 0.0, "heal_pct_max_hp": 0.25}),
 		# spellblade
 		SkillDef.make(&"flame_edge", "Flame Edge", "A burning strike with your stronger of STR or INT.",
 			{"elements": [EL.FIRE, EL.SLASH] as Array[int], "mp_cost": 5, "damage_type": D.MELEE, "power": 1.5, "adaptive": true}),
 		SkillDef.make(&"storm_edge", "Storm Edge", "Lightning leaps off your blade to every enemy.",
-			{"elements": [EL.LIGHTNING] as Array[int], "mp_cost": 9, "damage_type": D.MELEE, "power": 0.9, "adaptive": true, "targeting": T.ENEMY_ALL}),
+			{"ignores_row": true, "elements": [EL.LIGHTNING] as Array[int], "mp_cost": 9, "damage_type": D.MELEE, "power": 0.9, "adaptive": true, "targeting": T.ENEMY_ALL}),
 		# magic_swordsman
 		SkillDef.make(&"arcane_guard", "Arcane Guard", "Enchanted armour: take 30% less damage for 3 turns.",
 			{"mp_cost": 5, "effect": E.STATUS, "targeting": T.SELF, "status_id": &"ward", "status_turns": 3}),
@@ -694,8 +694,8 @@ static func _build() -> Dictionary:
 		SkillDef.make(&"commanding_strike", "Commanding Strike", "A leader's blow.",
 			{"mp_cost": 7, "damage_type": D.MELEE, "power": 1.8}),
 		# grandmaster
-		SkillDef.make(&"hundred_fists", "Hundred Fists", "A blur of strikes. +20% crit chance.",
-			{"elements": [EL.BLUNT] as Array[int], "mp_cost": 9, "damage_type": D.MELEE, "power": 2.2, "bonus_crit": 0.2}),
+		SkillDef.make(&"hundred_fists", "Hundred Fists", "A blur of strikes, 3-5 hits. +20% crit chance.",
+			{"hits_min": 3, "hits_max": 5, "elements": [EL.BLUNT] as Array[int], "mp_cost": 9, "damage_type": D.MELEE, "power": 2.2, "bonus_crit": 0.2}),
 		SkillDef.make(&"iron_body", "Iron Body", "Take 30% less damage for 3 turns.",
 			{"mp_cost": 6, "effect": E.STATUS, "targeting": T.SELF, "status_id": &"ward", "status_turns": 3}),
 		# shadowfist
@@ -707,7 +707,7 @@ static func _build() -> Dictionary:
 		SkillDef.make(&"thunder_edge", "Thunder Edge", "Lightning and steel, with your stronger of STR or INT.",
 			{"elements": [EL.LIGHTNING, EL.SLASH] as Array[int], "mp_cost": 9, "damage_type": D.MELEE, "power": 2.0, "adaptive": true}),
 		SkillDef.make(&"tempest_slash", "Tempest Slash", "Wind and lightning cut every enemy.",
-			{"elements": [EL.WIND, EL.LIGHTNING] as Array[int], "mp_cost": 13, "damage_type": D.MELEE, "power": 1.1, "adaptive": true, "targeting": T.ENEMY_ALL}),
+			{"ignores_row": true, "elements": [EL.WIND, EL.LIGHTNING] as Array[int], "mp_cost": 13, "damage_type": D.MELEE, "power": 1.1, "adaptive": true, "targeting": T.ENEMY_ALL}),
 		# arcane_knight
 		SkillDef.make(&"spell_bulwark", "Spell Bulwark", "The whole party takes 30% less damage for 2 turns.",
 			{"mp_cost": 12, "effect": E.STATUS, "targeting": T.ALLY_ALL, "status_id": &"ward", "status_turns": 2}),
@@ -716,8 +716,8 @@ static func _build() -> Dictionary:
 		# blademaster
 		SkillDef.make(&"iaido", "Iaido", "Draw and cut in one motion. +25% crit chance.",
 			{"elements": [EL.SLASH] as Array[int], "mp_cost": 10, "damage_type": D.MELEE, "power": 2.4, "bonus_crit": 0.25}),
-		SkillDef.make(&"blade_dance", "Blade Dance", "Cuts every enemy you can reach.",
-			{"elements": [EL.SLASH] as Array[int], "mp_cost": 10, "damage_type": D.MELEE, "power": 1.0, "targeting": T.ENEMY_ALL}),
+		SkillDef.make(&"blade_dance", "Blade Dance", "3-5 cuts on every enemy you can reach.",
+			{"hits_min": 3, "hits_max": 5, "elements": [EL.SLASH] as Array[int], "mp_cost": 10, "damage_type": D.MELEE, "power": 1.0, "targeting": T.ENEMY_ALL}),
 		# runeguard
 		SkillDef.make(&"rune_of_warding", "Rune of Warding", "The whole party takes 30% less damage for 3 turns.",
 			{"mp_cost": 14, "effect": E.STATUS, "targeting": T.ALLY_ALL, "status_id": &"ward", "status_turns": 3}),
@@ -763,8 +763,8 @@ static func _build() -> Dictionary:
 		SkillDef.make(&"hurricane_volley", "Hurricane Volley", "Storm-borne arrows hit every enemy.",
 			{"elements": [EL.WIND, EL.PIERCE] as Array[int], "mp_cost": 20, "damage_type": D.RANGED, "power": 1.6, "targeting": T.ENEMY_ALL}),
 		# assassin_t3
-		SkillDef.make(&"death_blossom", "Death Blossom", "Blades bloom across every enemy, any row.",
-			{"elements": [EL.SLASH] as Array[int], "mp_cost": 20, "damage_type": D.MELEE, "power": 1.4, "ignores_row": true, "bonus_crit": 0.2, "targeting": T.ENEMY_ALL}),
+		SkillDef.make(&"death_blossom", "Death Blossom", "Blades bloom: 3-5 cuts on every enemy, any row.",
+			{"hits_min": 3, "hits_max": 5, "elements": [EL.SLASH] as Array[int], "mp_cost": 20, "damage_type": D.MELEE, "power": 1.4, "ignores_row": true, "bonus_crit": 0.2, "targeting": T.ENEMY_ALL}),
 		# trickster_t3
 		SkillDef.make(&"jackpot", "Jackpot", "The luckiest strike ever thrown. +60% crit chance.",
 			{"mp_cost": 14, "damage_type": D.MELEE, "power": 2.0, "bonus_crit": 0.6}),
@@ -787,11 +787,11 @@ static func _build() -> Dictionary:
 		SkillDef.make(&"nirvana_strike", "Nirvana Strike", "A perfect strike. +30% crit chance.",
 			{"elements": [EL.BLUNT] as Array[int], "mp_cost": 16, "damage_type": D.MELEE, "power": 2.8, "bonus_crit": 0.3}),
 		# shadowfist_t3
-		SkillDef.make(&"phantom_barrage", "Phantom Barrage", "Unseen blows hit every enemy, any row.",
-			{"elements": [EL.DARK] as Array[int], "mp_cost": 20, "damage_type": D.MELEE, "power": 1.4, "ignores_row": true, "targeting": T.ENEMY_ALL}),
+		SkillDef.make(&"phantom_barrage", "Phantom Barrage", "3-5 unseen blows on every enemy, any row.",
+			{"hits_min": 3, "hits_max": 5, "elements": [EL.DARK] as Array[int], "mp_cost": 20, "damage_type": D.MELEE, "power": 1.4, "ignores_row": true, "targeting": T.ENEMY_ALL}),
 		# stormblade_t3
 		SkillDef.make(&"lightning_cleave", "Lightning Cleave", "Lightning cleaves every enemy.",
-			{"elements": [EL.LIGHTNING, EL.SLASH] as Array[int], "mp_cost": 20, "damage_type": D.MELEE, "power": 1.6, "adaptive": true, "targeting": T.ENEMY_ALL}),
+			{"ignores_row": true, "elements": [EL.LIGHTNING, EL.SLASH] as Array[int], "mp_cost": 20, "damage_type": D.MELEE, "power": 1.6, "adaptive": true, "targeting": T.ENEMY_ALL}),
 		# arcane_knight_t3
 		SkillDef.make(&"aegis_of_runes", "Aegis of Runes", "The whole party takes 30% less damage for 4 turns.",
 			{"mp_cost": 18, "effect": E.STATUS, "targeting": T.ALLY_ALL, "status_id": &"ward", "status_turns": 4}),

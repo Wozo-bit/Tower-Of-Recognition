@@ -155,8 +155,8 @@ The climb is 100 floors (`GameState.FINAL_FLOOR`). Everyone in the tower believe
 | `scripts/data/stat_block.gd` | Base vs allocated points, derived stats (HP, defenses, dodge, crit). Balance numbers at the top. |
 | `scripts/data/class_def.gd` | A class definition: required stats + threshold. Has `tier`, `advances_from`, `is_secret` ready for later. |
 | `scripts/autoload/class_registry.gd` | Autoload `ClassRegistry`. Registers the 5 tier-1 classes; also loads any `ClassDef` `.tres` in `res://data/classes/`. |
-| `scripts/data/character_data.gd` | Level/XP, points per level (5 up to lv5, 3 after), allocation, class choice at lv10, respec rules. |
-| `scripts/ui/stat_allocation_panel.gd` | Allocation UI with a pending pool + Confirm, so a misclick doesn't cost a respec. |
+| `scripts/data/character_data.gd` | Level/XP, points per level (5 up to lv5, 3 after), allocation, auto-spend, class choice at lv10, class changes, stat resets. |
+| `scripts/ui/stat_allocation_panel.gd` | Allocation UI with a pending pool + Confirm, auto-spend and free stat resets. |
 | `scripts/ui/class_selection_screen.gd` | Level-10 overlay that lists every class you qualify for, or how close you are to each one. |
 | `scripts/debug/progression_sandbox.gd` | Dev Sandbox: test harness with buttons to gain XP, level up, respec, add gold and start test fights. |
 | `tests/test_progression.gd` | 40 rule checks. Run: `godot --headless res://tests/test_progression.tscn` |
@@ -691,7 +691,9 @@ The tower is split into **stages of 10 floors**, set up in `scripts/tower/stage_
   3. **Beating it is the final step.** It unlocks the secret class and announces it on the floor.
 - **Ashbound Knight** is the placeholder secret class. It needs 55% of allocated points in Strength + Intelligence, and it's **player character only**. Its skills are Ember Strike (melee, ignores 30% defense) and Ashen Nova (magic, hits all enemies). Once unlocked, it's offered at the level-10 class screen if you qualify. If you already have a class, the party menu has a **✦ Ashbound Knight** button that switches to it (it replaces your class and skills). Locked secret classes never show up anywhere, including the "how close you are" hints.
 - **Its own advancements** (Hayden 2026-10-25), so taking it isn't a step down: Ashbound Knight → **Cinderbrand Knight** (tier 2: Cinder Cleave, Ashen Ward) → **Wyrmflame Knight** (tier 3: Wyrmflame). Same gates and trials as other lines; placeholder names.
-- **One free class change** (Hayden 2026-10-25): once floor 20 is beaten, each character still in a tier-1 class gets a **⇄ Change class** button in Tab (a notice on floor 21 says so). It gives up the class, grants a free respec, and lets them choose again (any class they qualify for, or an unlocked secret class for the player). Learned skills stay. Once per character (`CharacterData.class_change_used`, saved), and not after advancing.
+- **Free class changes** (Hayden 2026-11-05): anyone with a class has a **⇄ Change class** button in Tab, any time out of battle. It lists every class at the tier they've earned, with no trial or stat check, and asks whether to keep their stats, refund them, or refund and auto-spend toward the new class. Route-only classes need the route, secret lines are the player's once unlocked, and demigods keep their own class. Gear locked to the old class goes back in the bag.
+- **Stat resets** are free too: **Reset stats** on the Stats screen. The class stays.
+- **Auto-spend** (Stats screen) fills the pending points toward the class being built for (`CharacterData.goal_class`): the next advancement, or a pop-up asks if there are several, and it's remembered. Nothing is spent until Confirm. Past the top of a line, it follows the class's own stats.
 - In the sandbox, **🔍 Find next Ashbound clue** gives you the clues one at a time for testing.
 
 ### Loot
@@ -712,7 +714,7 @@ Most of these were set by the balance pass with `tools/balance_sim` (see Difficu
 - Difficulty modes: `scripts/data/difficulty.gd`
 - Enemy curve, rewards and group size: top of `game_state.gd` (`ENEMY_SCALE_*`, `REWARD_EXP`, `GOLD_REWARD_EXP`, `MAX_EXTRA_ENEMIES`); `Combatant.ENEMY_HP_MULT`; `StageLibrary.GUARDIAN_MULT` and each theme's `power`
 - Guild AI activity: top of `guild_ai.gd` (`ACT_CHANCE`, `*_WEIGHT`, `PATRON_PULL`, `FEUD_WAR_BONUS`, `UPSTART_WAR_BONUS`); beings' `TEMPER` in `being_library.gd`
-- Respec cost: 500 gold, doubling each paid respec (`RESPEC_BASE_COST / RESPEC_COST_MULTIPLIER`)
+- Auto-spend: `CharacterData.AUTO_SPEND_SHARE` (75% of spent points in the goal's stats)
 - Derived stat rates: top of `stat_block.gd`
 - Combat math: top of `damage_calc.gd`
 - Skill numbers: `skill_library.gd`

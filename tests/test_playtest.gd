@@ -26,6 +26,7 @@ func _ready() -> void:
 	test_merchant()
 	test_decline()
 	test_second_playtest()
+	test_third_playtest()
 	test_guild_actions()
 	test_class_hints()
 	test_ashen_trail()
@@ -328,6 +329,181 @@ func _rng(s: int) -> RandomNumberGenerator:
 
 
 ## Hayden's list, 2026-11-05.
+func test_third_playtest() -> void:
+	print("-- third playtest --")
+	# Auto-spend: every class can be reached from nothing.
+	for def in ClassRegistry.get_all():
+		if def.ng_plus_only:
+			continue
+		_fresh(1)
+		var c := GameState.player
+		c.unspent_points = 35
+		var plan := c.auto_spend_plan(def, c.unspent_points)
+		var total := 0
+		for st in plan:
+			total += plan[st]
+		check(total == 35 and c.apply_allocation(plan), "%s: spends every point" % def.id)
+		check(def.qualifies(c.stats), "%s: qualifies (%s)" % [def.id, c.stats.allocated_share(def.required_stats)])
+	# And a late goal pulls a build over, level by level.
+	_fresh(1)
+	var c := GameState.player
+	var mage := ClassRegistry.get_class_def(&"mage")
+	var tank := ClassRegistry.get_class_def(&"tank")
+	c.unspent_points = 12
+	check(c.goal_options().size() > 1 and c.needs_goal_choice(), "no class: asks which")
+	check(not c.goal_options().any(func(d): return d.is_secret), "secret classes stay secret")
+	c.build_goal = &"mage"
+	check(c.goal_class() == mage and not c.needs_goal_choice(), "the goal is remembered")
+	var p := c.auto_spend_plan(mage, 12)
+	check(p[Stats.Type.INTELLIGENCE] >= 9, "the goal's stats come first: %s" % [p])
+	p = c.auto_spend_plan(tank, 12)
+	check(absi(p[Stats.Type.HEALTH] - p[Stats.Type.STAMINA]) <= 1 or not tank.required_stats.has(Stats.Type.STAMINA), "shared evenly: %s" % [p])
+	# A pending point counts as spent.
+	var pending := { Stats.Type.INTELLIGENCE: 12 }
+	p = c.auto_spend_plan(mage, 4, pending)
+	check(p[Stats.Type.INTELLIGENCE] < 4, "already enough pending, so the rest goes elsewhere: %s" % [p])
+	# One option: no question. Several: asks. None: its own stats.
+	c.class_id = &"mage"
+	var next := c.goal_options()
+	check(not next.is_empty() and next.all(func(d): return d.advances_from == &"mage"), "with a class: its advancements")
+	check(c.needs_goal_choice() == (next.size() > 1), "asks only if there's a choice")
+	var top: ClassDef = ClassRegistry.get_tier(4).filter(func(d): return ClassRegistry.advancements_for(d.id).is_empty() and d.unique_to == &"")[0]
+	c.class_id = top.id
+	check(c.goal_options().is_empty() and c.goal_class() == top, "top of the line: its own stats")
+	check(c.auto_spend_plan(c.goal_class(), 8).values().reduce(func(a, b): return a + b, 0) == 8, "still spends")
+	# The goal survives a save.
+	c.class_id = &"mage"
+	c.build_goal = next[0].id
+	check(SaveSerializer.character_from_dict(SaveSerializer.character_to_dict(c)).build_goal == next[0].id, "goal is saved")
+	# The screen: pending first, pop-up when there's a choice.
+	_fresh(1)
+	var panel := StatAllocationPanel.new()
+	add_child(panel)
+	c = GameState.player
+	c.unspent_points = 10
+	panel.bind(c)
+	panel.auto_spend()
+	check(panel.goal_dialog != null and panel.pending_total() == 0, "several classes: the pop-up asks")
+	panel.pick_goal(ClassRegistry.get_class_def(&"archer"), true)
+	check(panel.goal_dialog == null and panel.pending_total() == 10 and c.unspent_points == 10, "chosen: pending, not spent yet")
+	panel.queue_free()
+
+	# "You" on your own lines, whatever your name is.
+	_fresh(1)
+	var r := DialogueRunner.new()
+	r.start(&"ch1_legend")
+	var guard := 0
+	while r.raw_speaker() != DialogueRunner.PLAYER_SPEAKER and not r.finished and guard < 30:
+		guard += 1
+		if r.has_choices():
+			r.choose(r.choices()[0].index)
+		else:
+			r.advance()
+	check(r.speaker() == "You", "the player's line reads You: %s" % r.speaker())
+
+	# Skills do what they say.
+	var liars := []
+	for s: SkillDef in SkillLibrary._skills.values():
+		if s.id != SkillLibrary.BOSS_UNLEASH and s.effect == SkillDef.Effect.DAMAGE and s.targeting == SkillDef.Targeting.ENEMY_ALL \
+				and s.damage_type == SkillDef.DamageType.MELEE and not s.ignores_row and not s.description.contains("reach"):
+			liars.append(s.id)
+		if s.hits_max > 1:
+			check(s.description.contains("%d-%d" % [s.hits_min, s.hits_max]), "%s says how many hits" % s.id)
+		if s.display_name.to_lower().contains("flurry") or s.display_name.to_lower().contains("barrage"):
+			check(s.hits_min >= 3 and s.hits_max <= 5, "%s really hits 3-5 times" % s.id)
+	check(liars.is_empty(), "sweeps that stop at the nearest row say so: %s" % [liars])
+	var tempest := SkillLibrary.get_skill(&"tempest_slash")
+	var b := _row_battle(tempest)
+	check(b.valid_targets(b.party[0], tempest).size() == 2, "Tempest Slash reaches the back row")
+	var cleave := SkillLibrary.get_skill(&"cleave")
+	b = _row_battle(cleave)
+	check(b.valid_targets(b.party[0], cleave).size() == 1, "Cleave doesn't")
+
+	# Flurry: 3-5 hits, about the same total as one big hit, one stagger.
+	var flurry := SkillLibrary.get_skill(&"flurry")
+	var solo := flurry.duplicate() as SkillDef
+	solo.hits_min = 1
+	solo.hits_max = 1
+	var counts := {}
+	var multi_total := 0
+	var single_total := 0
+	for i in 200:
+		b = _row_battle(flurry, 1000000, i)
+		var results := []   # a lambda can't reassign a local, but it can fill an array
+		b.action_resolved.connect(func(res): results.append(res))
+		var action := BattleAction.new()
+		action.type = BattleAction.Type.SKILL
+		action.actor = b.current
+		action.skill = flurry
+		action.target = b.enemies[0]
+		check(b.submit(action), "flurry goes through") if i == 0 else b.submit(action)
+		var hit_count: int = results[0].entries.size()
+		counts[hit_count] = counts.get(hit_count, 0) + 1
+		for e in results[0].entries:
+			multi_total += e.amount
+		results.clear()
+		b = _row_battle(solo, 1000000, i)
+		b.action_resolved.connect(func(res): results.append(res))
+		action = BattleAction.new()
+		action.type = BattleAction.Type.SKILL
+		action.actor = b.current
+		action.skill = solo
+		action.target = b.enemies[0]
+		b.submit(action)
+		for e in results[0].entries:
+			single_total += e.amount
+	check(counts.keys().all(func(n): return n >= 3 and n <= 5) and counts.size() == 3, "3, 4 or 5 hits: %s" % [counts])
+	check(absf(float(multi_total) / single_total - 1.0) < 0.15, "same damage overall: %d vs %d" % [multi_total, single_total])
+	# A weak enemy only staggers once per flurry; a dying one takes no more hits.
+	b = _row_battle(flurry, 1000000, 3)
+	var foe: Combatant = b.enemies[0]
+	foe.affinities = { Element.Type.BLUNT: Element.Affinity.WEAK, Element.Type.SLASH: Element.Affinity.WEAK, Element.Type.PIERCE: Element.Affinity.WEAK }
+	var fist := BattleAction.new()
+	fist.type = BattleAction.Type.SKILL
+	fist.actor = b.current
+	fist.skill = flurry
+	fist.target = foe
+	var before: int = foe.stagger
+	b.submit(fist)
+	check(foe.stagger - before <= 1, "one stagger point per use: %d" % (foe.stagger - before))
+	b = _row_battle(flurry, 1, 4)
+	var last := []
+	b.action_resolved.connect(func(res): last.append(res))
+	fist = BattleAction.new()
+	fist.type = BattleAction.Type.SKILL
+	fist.actor = b.current
+	fist.skill = flurry
+	fist.target = b.enemies[0]
+	b.submit(fist)
+	check(b.enemies[0].hp <= 0 and last[0].entries[-1].killed, "the blow that kills is the last")
+
+
+## A fighter against a goblin in front and a goblin behind, on the fighter's turn.
+func _row_battle(skill: SkillDef, foe_hp := 1000, seed_value := 1) -> BattleManager:
+	_fresh(1)
+	GameState.companions.clear()
+	var c := GameState.player
+	c.stats.add_allocated(Stats.Type.STRENGTH, 30)
+	c.stats.add_allocated(Stats.Type.AGILITY, 200)
+	var chars: Array[CharacterData] = [c]
+	var b := BattleManager.new()
+	b.setup(chars, EnemyLibrary.build_group([&"goblin", &"goblin"]), seed_value)
+	b.party[0].mp = 999
+	b.enemies[0].row = Combatant.Row.FRONT
+	b.enemies[1].row = Combatant.Row.BACK
+	for g in b.enemies:
+		g.max_hp = foe_hp
+		g.hp = foe_hp
+		g.affinities = {}
+		g.traits = []
+	b.start()
+	var guard := 0
+	while b.current != b.party[0] and guard < 30:
+		guard += 1
+		b.advance()
+	return b
+
+
 func test_second_playtest() -> void:
 	print("-- second playtest --")
 	# The campfire heals everyone, bench included.

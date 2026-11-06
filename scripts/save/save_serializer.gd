@@ -227,11 +227,9 @@ static func character_to_dict(c: CharacterData) -> Dictionary:
 	return {
 		"name": c.character_name, "level": c.level, "xp": c.xp, "unspent": c.unspent_points,
 		"class": String(c.class_id), "gold": c.gold,
-		"free_respec_pre_used": c.free_respec_pre_class_used,
-		"free_respec_post_used": c.free_respec_post_class_used,
-		"class_change_used": c.class_change_used, "epithet": c.epithet,
+		"build_goal": String(c.build_goal), "epithet": c.epithet,
 		"wage": c.wage, "wage_missed": c.wage_missed, "wage_owed": c.wage_owed,
-		"paid_respecs": c.paid_respec_count, "battle_row": c.battle_row, "rows": 4,
+		"battle_row": c.battle_row, "rows": 4,
 		"missing_hp": c.missing_hp, "missing_mp": c.missing_mp,
 		"legacy_id": c.legacy_id, "companion_id": String(c.companion_id),
 		"allocated": _stat_dict_out(c.stats.allocated),
@@ -255,12 +253,10 @@ static func character_from_dict(d: Dictionary) -> CharacterData:
 	c.xp = _i(d, "xp", 0, 0)
 	c.unspent_points = _i(d, "unspent", 0, 0, 99999)
 	c.gold = _i(d, "gold", 0, 0)
-	c.free_respec_pre_class_used = _b(d, "free_respec_pre_used", false)
-	c.free_respec_post_class_used = _b(d, "free_respec_post_used", false)
-	c.class_change_used = _b(d, "class_change_used", false)
+	var goal := StringName(_s(d, "build_goal", "", 64))
+	c.build_goal = goal if ClassRegistry.get_class_def(goal) != null else &""
 	var ep := _s(d, "epithet", "", 64)
 	c.epithet = ep if CharacterData.EPITHETS.has(ep) else ""
-	c.paid_respec_count = _i(d, "paid_respecs", 0, 0, 999)
 	c.battle_row = _i(d, "battle_row", -1, -1, Combatant.Row.BACK)
 	if _i(d, "rows", 2, 2, 4) == 2 and c.battle_row == 1:
 		c.battle_row = Combatant.Row.BACK   # saved before the 4-row layout

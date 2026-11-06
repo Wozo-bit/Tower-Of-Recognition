@@ -173,7 +173,12 @@ func set_highlight(h: int) -> void:
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if h == Highlight.TARGETABLE else Control.CURSOR_ARROW
 
 
-func popup(text: String, color: Color) -> void:
+## `delay`: so the hits of a flurry float up one after another.
+func popup(text: String, color: Color, delay := 0.0) -> void:
+	if delay > 0.0:
+		await get_tree().create_timer(delay).timeout
+		if not is_inside_tree():
+			return
 	var l := Label.new()
 	l.text = text
 	l.add_theme_font_size_override("font_size", 20)

@@ -256,7 +256,13 @@ func test_shape(win: Vector2i, scale: float, label: String) -> void:
 	_expect_fit(floor_scene, "Tab menu", label)
 	var p := GameState.player
 	var subs := {
-		"stats": func(): menu._stats_overlay.show(), "gear": func(): menu._gear_panel.open(p),
+		"stats": func():
+			p.class_id = &"mage"   # with a goal line + every button showing
+			p.unspent_points = 5
+			menu._stats_panel.bind(p)
+			menu._stats_overlay.show(),
+		"change class": func(): menu._class_change_panel.open(p),
+		"gear": func(): menu._gear_panel.open(p),
 		"skills": func(): menu._skills_panel.open(p), "manage party": func(): menu._manage_panel.open(),
 		"bestiary": func(): menu._bestiary_panel.open(), "quests": func(): menu._quest_panel.open(),
 		"guilds": func(): menu._guild_panel.open(), "divinity": func(): menu._divinity_panel.open(),
@@ -269,7 +275,7 @@ func test_shape(win: Vector2i, scale: float, label: String) -> void:
 		subs[what].call()
 		await _frames(2)
 		_expect_fit(floor_scene, what, label)
-		for panel in [menu._stats_overlay, menu._gear_panel, menu._skills_panel, menu._manage_panel, menu._bestiary_panel,
+		for panel in [menu._stats_overlay, menu._class_change_panel, menu._gear_panel, menu._skills_panel, menu._manage_panel, menu._bestiary_panel,
 				menu._quest_panel, menu._guild_panel, menu._divinity_panel, menu._advance_panel, menu._class_screen, menu._guide_panel,
 				floor_scene._travel_panel]:
 			panel.hide()

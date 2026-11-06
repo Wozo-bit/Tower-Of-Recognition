@@ -141,8 +141,7 @@ func refresh() -> void:
 			_list.add_child(btn)
 		_detail.text = "Select a class to see details."
 
-	var cost := character.next_respec_cost()
-	_respec_btn.text = "Respec (free)" if cost == 0 else "Respec (%d gold)" % cost
+	_respec_btn.text = "Reset stats (free)"
 	_respec_btn.disabled = not character.can_respec()
 	_confirm_btn.disabled = true
 	_confirm_btn.visible = not qualifying.is_empty()

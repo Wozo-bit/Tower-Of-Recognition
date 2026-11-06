@@ -399,8 +399,8 @@ Placeholders to confirm with Hayden later:
 default friend name "Rowan", Ashbound Knight secret-class details,
 FINAL_FLOOR = 100 (roguelite-style replayability), tier-2/tier-3/demigod class names, Ashbound's Cinderbrand/Wyrmflame Knight.
 Secret classes (Hayden 2026-10-25): a build hint on floors 2-9, their own
-advancement lines, and one free class change + free respec per character
-after floor 20 (tier 1 only).
+advancement lines.
+Third playtest BUILT 2026-11-05 (Hayden's picks): change class free, any time out of battle, to any class at your earned tier, no trial or stat check (GameState.change_class: keep / refund / refund + auto-spend; not demigods); stat resets free; auto-spend on the Stats screen (goal_class, pop-up if several, saved as build_goal; pending until Confirm); the player's lines read "You"; melee skills saying "every enemy" hit every row, those stopping at the nearest row say "you can reach" (tested); multi-hit skills (SkillDef.hits_min/max, 3-5; power is the average total; stagger counts once per use, per target).
 
 ## Architecture
 - Autoloads: ClassRegistry, GameState, Settings. UI is built in code
@@ -454,7 +454,7 @@ after floor 20 (tier 1 only).
   wait there too.
 
 ## Testing
-Every change gets tests in tests/ (26 suites, 4850 checks at last run).
+Every change gets tests in tests/ (26 suites, 5225 checks at last run).
 Run headless from the project folder:
 
     godot --headless --path . --import
