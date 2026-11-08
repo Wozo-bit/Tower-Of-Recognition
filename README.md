@@ -1,4 +1,4 @@
-# Tower Climber (Godot 4.7)
+# Tower Of Recognition (Godot 4.7)
 
 Open `project.godot` in Godot 4.7.2 and press **F5**. The game scales to fit any window size or fullscreen. It opens on the **title screen**:
 
