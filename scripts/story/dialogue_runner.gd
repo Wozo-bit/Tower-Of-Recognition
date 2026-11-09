@@ -58,6 +58,9 @@ func start(id: StringName, with: CharacterData = null, being: StringName = &"", 
 	return true
 
 
+const PLAYER_SPEAKER := "{player}"
+
+
 ## Which node a dialogue opens on right now (its "start" list is checked in order).
 static func start_node(d: Dictionary) -> String:
 	var start = d.get("start", "")
@@ -69,7 +72,10 @@ static func start_node(d: Dictionary) -> String:
 	return ""
 
 
+## The player's own lines read "You", never their name (Hayden 2026-11-05).
 func speaker() -> String:
+	if raw_speaker() == PLAYER_SPEAKER:
+		return "You"
 	return fill(_node().get("speaker", ""), _npc_name())
 
 
@@ -196,6 +202,7 @@ static func check(cond: Dictionary) -> bool:
 			"can_pay_bargain": ok = gs.blessings.can_pay(context_being) == v
 			"blessed": ok = gs.player.is_blessed() == v
 			"blessed_by": ok = gs.player.blessing_id == v
+			"godless": ok = gs.player.godless() == v
 			"blessed_by_bid": ok = gs.player.blessing_id == StoryLibrary.bid_pair()[v]
 			# Guild agents (about the guild this conversation is with).
 			"guild_member": ok = (gs.guilds.member == context_guild and context_guild != &"") == v
@@ -266,6 +273,10 @@ func _apply_effects(effects: Array) -> void:
 			if c:
 				messages.append("%s joined the party!" % c.character_name if gs.companions.has(c)
 					else "%s joined (on reserve: the party is full)." % c.character_name)
+		if e.has("hurt_party"):   # a share of everyone's current HP; never fatal
+			for m in gs.battle_party():
+				if not m.is_downed():
+					m.set_current_hp(maxi(1, roundi(m.current_hp() * (1.0 - e.hurt_party))))
 		if e.has("heal_party"):
 			gs.full_restore_party()
 			messages.append("Everyone feels rested.")
@@ -371,6 +382,10 @@ static func fill(s: String, npc_name: String = "") -> String:
 		.replace("{npc}", npc_name) \
 		.replace("{stage_hint}", StageLibrary.stage_for_floor(GameState.floor_number + 1).get("hint", ""))
 	out = StoryLibrary.fill_story_tokens(out)
+	if out.contains("_initial}"):
+		var first := GameState.player.character_name.substr(0, 1).to_upper()
+		var second := (friend.character_name if friend else GameState.CHILDHOOD_FRIEND_NAME).substr(0, 1).to_upper()
+		out = out.replace("{player_initial}", first).replace("{friend_initial}", second)
 	if out.contains("{floor_guild}"):
 		var ruler := GameState.guilds.owner_of_floor(GameState.floor_number)
 		out = out.replace("{floor_guild}", GuildLibrary.guild_name(ruler) if ruler != &"" else "The guild that runs this floor")
@@ -396,7 +411,7 @@ static func fill(s: String, npc_name: String = "") -> String:
 	if context_recruit != &"" and out.contains("{recruit"):
 		var n := NpcLibrary.get_npc(context_recruit)
 		var r := NpcLibrary.recruit_info(context_recruit)
-		out = out.replace("{recruit_pitch}", r.get("pitch", "")).replace("{recruit_fee}", str(r.get("fee", 0))) \
+		out = out.replace("{recruit_pitch}", NpcLibrary.pitch_of(context_recruit)).replace("{recruit_fee}", str(r.get("fee", 0))) \
 			.replace("{recruit_down}", str(NpcLibrary.hire_down(context_recruit))) \
 			.replace("{recruit_wage}", str(NpcLibrary.hire_wage(context_recruit))) \
 			.replace("{recruit_favor}", r.get("favor", {}).get("title", "")) \

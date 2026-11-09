@@ -1,7 +1,7 @@
 class_name StatAllocationPanel
 extends PanelContainer
 ## Stat allocation UI. Points go into a PENDING pool first and only commit on
-## Confirm — since respecs are limited, a misclick shouldn't cost the player.
+## Confirm, so auto-spend and misclicks can be looked over first.
 ## Built entirely in code so it can be dropped into any scene.
 
 signal allocation_confirmed
@@ -14,10 +14,16 @@ var _hint: Label
 var _derived_label: Label
 var _confirm_btn: Button
 var _clear_btn: Button
+var _goal_label: Label
+var _auto_btn: Button
+var _goal_btn: Button
+var _reset_btn: Button
+## The open "what are you building toward?" window (tests look at it).
+var goal_dialog: AcceptDialog
 
 
 func _init() -> void:
-	custom_minimum_size = Vector2(420, 0)
+	custom_minimum_size = Vector2(680, 0)   # wide, so it stays short at 120% interface size
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 16)
@@ -44,7 +50,12 @@ func _init() -> void:
 	var grid := GridContainer.new()
 	grid.columns = 4
 	grid.add_theme_constant_override("h_separation", 12)
-	box.add_child(grid)
+	var body := HBoxContainer.new()
+	body.add_theme_constant_override("separation", 24)
+	box.add_child(body)
+	body.add_child(grid)
+	_derived_label = Label.new()
+	body.add_child(_derived_label)
 
 	for stat in Stats.all():
 		var name_label := Label.new()
@@ -81,9 +92,27 @@ func _init() -> void:
 	_clear_btn.pressed.connect(_clear_pending)
 	buttons.add_child(_clear_btn)
 
-	box.add_child(HSeparator.new())
-	_derived_label = Label.new()
-	box.add_child(_derived_label)
+	_goal_label = Label.new()
+	_goal_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_goal_label.add_theme_font_size_override("font_size", 13)
+	box.add_child(_goal_label)
+	var auto_row := HFlowContainer.new()
+	box.add_child(auto_row)
+	_auto_btn = Button.new()
+	_auto_btn.text = "Auto-spend"
+	_auto_btn.tooltip_text = "Fills in your points toward the class you're building for. Nothing is spent until you Confirm."
+	_auto_btn.pressed.connect(auto_spend)
+	auto_row.add_child(_auto_btn)
+	_goal_btn = Button.new()
+	_goal_btn.text = "Change goal"
+	_goal_btn.pressed.connect(_ask_goal.bind(false))
+	auto_row.add_child(_goal_btn)
+	_reset_btn = Button.new()
+	_reset_btn.text = "Reset stats (free)"
+	_reset_btn.tooltip_text = "Refunds every spent point. Your class stays."
+	_reset_btn.pressed.connect(_confirm_reset)
+	auto_row.add_child(_reset_btn)
+
 
 	_clear_pending_silent()
 
@@ -132,6 +161,85 @@ func _on_confirm() -> void:
 		allocation_confirmed.emit()
 
 
+## Fills the pending pool toward the goal, asking for the goal first if there's a choice.
+func auto_spend() -> void:
+	if character == null or _remaining() <= 0:
+		return
+	if character.needs_goal_choice():
+		_ask_goal(true)
+	else:
+		_fill_auto()
+
+
+func _fill_auto() -> void:
+	var plan := character.auto_spend_plan(character.goal_class(), _remaining(), _pending)
+	for stat in plan:
+		_pending[stat] += plan[stat]
+	_refresh()
+
+
+## Sets the goal (the pop-up's buttons call this).
+func pick_goal(def: ClassDef, then_spend: bool) -> void:
+	character.build_goal = def.id
+	if goal_dialog:
+		goal_dialog.queue_free()
+		goal_dialog = null
+	if then_spend:
+		_fill_auto()
+	else:
+		_refresh()
+
+
+func _ask_goal(then_spend: bool) -> void:
+	if goal_dialog:
+		goal_dialog.queue_free()
+	goal_dialog = AcceptDialog.new()
+	goal_dialog.title = "Build toward"
+	goal_dialog.ok_button_text = "Cancel"
+	var box := VBoxContainer.new()
+	var ask := Label.new()
+	ask.text = "What is %s trying to become?" % character.character_name
+	box.add_child(ask)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(520, 320)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+	for def in character.goal_options():
+		var b := Button.new()
+		b.text = "%s: %s (now %d%%)" % [def.display_name, def.requirement_text(), roundi(def.qualification_share(character.stats) * 100)]
+		b.tooltip_text = def.description
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.pressed.connect(pick_goal.bind(def, then_spend))
+		list.add_child(b)
+	goal_dialog.add_child(box)
+	goal_dialog.canceled.connect(_close_goal)
+	goal_dialog.confirmed.connect(_close_goal)
+	add_child(goal_dialog)
+	goal_dialog.popup_centered()
+
+
+func _close_goal() -> void:
+	if goal_dialog:
+		goal_dialog.queue_free()
+		goal_dialog = null
+
+
+func _confirm_reset() -> void:
+	var dlg := ConfirmationDialog.new()
+	dlg.title = "Reset stats"
+	dlg.dialog_text = "Refund all of %s's spent stat points? It's free, and the class stays." % character.character_name
+	dlg.confirmed.connect(func():
+		character.respec()
+		_clear_pending()
+		dlg.queue_free())
+	dlg.canceled.connect(dlg.queue_free)
+	add_child(dlg)
+	dlg.popup_centered()
+
+
 func _refresh() -> void:
 	if character == null:
 		return
@@ -154,6 +262,18 @@ func _refresh() -> void:
 		row.minus.disabled = pend <= 0
 		row.plus.disabled = remaining <= 0
 
+	var goal := character.goal_class()
+	var options := character.goal_options()
+	if goal == null:
+		_goal_label.text = "Auto-spend will ask what you're building toward."
+	elif options.is_empty():
+		_goal_label.text = "Auto-spend: building on your class's own stats."
+	else:
+		_goal_label.text = "Building toward: %s (needs %s, now %d%%)." % [goal.display_name, goal.requirement_text(),
+			roundi(goal.qualification_share(character.stats) * 100)]
+	_auto_btn.disabled = remaining <= 0
+	_goal_btn.visible = options.size() > 1
+	_reset_btn.disabled = not character.can_respec()
 	_confirm_btn.disabled = pending_total() == 0
 	_clear_btn.disabled = pending_total() == 0
 

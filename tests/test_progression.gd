@@ -139,24 +139,17 @@ func test_choose_class_rules() -> void:
 func test_respec_flow() -> void:
 	var c := make_level(10)
 	c.allocate(Stats.Type.INTELLIGENCE, 35)
-	check(c.next_respec_cost() == 0, "pre-class respec is free")
 	check(c.respec() and c.unspent_points == 35 and c.stats.total_allocated() == 0, "free pre-class respec refunds all points")
 	check(c.stats.get_total(Stats.Type.INTELLIGENCE) == 5, "respec keeps base stats")
 
 	c.allocate(Stats.Type.INTELLIGENCE, 35)
-	check(c.next_respec_cost() > 0, "second pre-class respec costs gold")
 	c.choose_class(ClassRegistry.get_class_def(&"mage"))
-	check(c.next_respec_cost() == 0, "first post-class respec is free")
-	check(c.respec(), "free post-class respec works")
-	check(c.has_class(), "respec keeps chosen class")
-
-	c.allocate(Stats.Type.INTELLIGENCE, 10)
-	check(c.next_respec_cost() == 500, "first paid respec = 500")
-	check(not c.respec(), "can't respec without gold")
-	c.gold = 600
-	check(c.respec() and c.gold == 100, "paid respec deducts gold")
+	c.gold = 0
+	check(c.respec(), "reset works with a class and no gold")
+	check(c.has_class() and c.gold == 0, "reset keeps the class and costs nothing")
+	check(not c.can_respec(), "nothing spent, nothing to reset")
 	c.allocate(Stats.Type.INTELLIGENCE, 5)
-	check(c.next_respec_cost() == 1000, "second paid respec = 1000")
+	check(c.respec() and c.respec() == false, "reset as often as you like")
 
 
 func test_derived_defense() -> void:

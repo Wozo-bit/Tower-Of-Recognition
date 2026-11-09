@@ -20,7 +20,10 @@ const MODE_PROLOGUE := &"prologue"
 ## MODE_PROLOGUE, or the real-world return being played.
 static var mode: StringName = MODE_PROLOGUE
 ## Stone showing through the floorboards, per return.
-const WRONG_TILES := { &"return_tier2": [Vector2i(4, 5)] }
+const WRONG_TILES := { &"return_tier2": [Vector2i(4, 5)],
+	&"return_tier3": [Vector2i(4, 5), Vector2i(5, 5), Vector2i(7, 2), Vector2i(2, 4)],
+	&"return_tier4": [Vector2i(4, 5), Vector2i(5, 5), Vector2i(6, 5), Vector2i(7, 2), Vector2i(7, 3), Vector2i(2, 4),
+		Vector2i(2, 3), Vector2i(3, 4), Vector2i(6, 2)] }
 ## Tests turn this off so a return doesn't change scene.
 var auto_leave := true
 signal return_finished
@@ -192,7 +195,8 @@ func _build_ui() -> void:
 	var move_keys := "/".join(["move_up", "move_left", "move_down", "move_right"].map(
 		func(a): return InputBindings.key_name(a)))
 	_hint.text = ("Your room. Late. Look around, or use the PC.   (%s: move · %s: skip)" if mode == MODE_PROLOGUE
-		else "Your room? The PC is still on.   (%s: move · %s: skip)") % [move_keys, InputBindings.key_name("pause")]
+		else ("The studio. You know what day it is.   (%s: move · %s: skip)" if mode in [StoryLibrary.RETURN_DAY3, StoryLibrary.RETURN_RACK]
+		else "Your room? The PC is still on.   (%s: move · %s: skip)")) % [move_keys, InputBindings.key_name("pause")]
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hint.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)

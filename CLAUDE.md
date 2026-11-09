@@ -1,4 +1,6 @@
-# Tower Climber — notes for Claude
+# Tower of Recognition — notes for Claude
+
+Final title (Hayden 2026-11-05). Repo and folder keep the old name, Tower Climber. Renaming moved user:// to app_userdata/Tower of Recognition; saves were copied there, and the old folder is still there as a backup.
 
 Manhwa-inspired tower-climber RPG in **Godot 4.7.2** (GDScript; upgraded from 4.6.1). Plays like
 Hero's Adventure: Road to Passion / Final Fantasy: FF-style menu combat with
@@ -15,7 +17,8 @@ route thresholds (depend on how many choices the story gives) and per-skill
 tuning of tier-2 classes. Re-balance with tools/balance_sim after big changes.
 
 ### Recruits (Hayden 2026-10-25)
-12 recruits (README roster table), met 5 ways: campfire, hire (one-time fee;
+23 recruits (README roster; 11 added 2026-11-04 so every route reaches 9 in every
+run, tested), met 5 ways: campfire, hire (one-time fee;
 Hayden may switch to a wage per floor later), favor quest, rescue fight
 (fights beside you), captive of a boss sponsored by a RIVAL of their god
 (Hayden's idea; only when that stage rolls). Wanderers ("run_chance") in ~half
@@ -112,8 +115,8 @@ fewer fights per floor (2/3/4). The melee-only Slime Pits run (rogue+tank)
 is the one combo the bot can't clear on Normal (by Hayden's slime design).
 
 ### Art/sound hooks (built with Hayden 2026-10-24)
-Hayden has no art/music skills: plan is free commercial-safe assets (Kenney
-CC0 for SFX/UI) now, commissioned manhwa portraits + boss art later.
+Hayden has no art/music skills: free commercial-safe assets (Kenney CC0 for SFX/UI)
+and Claude-made or tool-made art; no commissions on this game (no budget). Pixel art is fine (Hayden 2026-11-05): manhwa-INSPIRED, not literal manhwa art; he mainly wants portraits for conversations, and simple battle animations: cast, attack, defend, and spell effects (e.g. chain lightning arcing through the remaining enemies).
 - Everything looks up files by name (Assets for art, Audio for music/sfx) and
   keeps its placeholder when missing. Naming guide: assets/README.md.
 - UITheme: system-window look, 6 palettes (System Blue default; Hayden
@@ -285,7 +288,8 @@ more routes/endings: keep new route content data-driven and registrable.
   Player sees HINTS only (reputation line in Tab, NPC reactions), no meter.
 - Companions who strongly disagree warn first, then leave (wait at rest
   floors, refuse to rejoin unless the route changes back). The childhood
-  friend CAN leave too on certain routes (big story moment).
+  friend NEVER leaves over a route (Hayden 2026-11-04): choices mold their
+  personality instead; keep branching their lines by route in every chapter.
 - NG+: route resets to neutral; the Hall of Climbers records which endings
   that character has seen.
 - Notice board: both generated bounties fitting the current stage (3 per
@@ -296,7 +300,7 @@ more routes/endings: keep new route content data-driven and registrable.
   placeholder text only, no real story.
 
 STORY (Hayden 2026-11-03/04, plan in docs/story/story_bible.md): game
-inside a game, "Tower of Recognition" (placeholder); grim-but-hopeful; the
+inside a game, "Tower of Recognition" (also the real title); grim-but-hopeful; the
 System has a hidden personality; why you were chosen + the tower's secret
 are undecided. Final boss = the creator's champion (the previous Tester);
 NG+ final boss = a mimic of your last conquering character + their party
@@ -331,6 +335,44 @@ friend_away alt, or mark prayers from afar "far": true (test_friend_away walks e
 path). Reunion on rejoin (StoryLibrary.FRIEND_REUNION; friend_not_told /
 friend_caught_up change later scenes). Story only, no stat or route cost.
 
+100 FLOORS (Hayden 2026-11-04): FINAL_FLOOR 100. Floor 60 = false summit
+(everyone believes it's the top; scene summit_false). New stages: Titanfall
+61-70, Gods' Host 71-80 (soldiers, never the gods), The Unfinished 81-90
+(glitched: weaknesses change per fight), Echoes 91-100 (echoing: copy your
+skills). Final boss Tester 0041; NG+ = mimics of your Hall character + party
+(GameState.boss_group / register_mimics; LegacyRecord.party). Tier 4 at floor
+70 (+30%; one capstone per tier-3 class). The first climb's story is written.
+
+THE SECRET (Hayden picked 2026-11-04): you built the game with your real childhood
+friend, and forgot; they got trapped or died; the System is what's left of them;
+the in-game friend is the game's memory of them. Reveal slowly (bible). Chapter 4
+"The Second Hand" + the tier-3 return BUILT 2026-11-04.
+Chapter 10 "Recognition" BUILT 2026-11-05: THE FIRST CLIMB'S STORY IS COMPLETE (first draft). Endings in the bible:
+ask to forget / take it back, then reset, draw (hero), keep (villain), hand the pencil to 0041 (vigilante). New Game+ "The One It Kept" BUILT (ng_why, ng3_* to ng10_*, RETURN_RACK; endings in the bible). God chapters 7-9 BUILT 2026-11-05. ALL THE STORY IS WRITTEN (first draft).
+Next: testing, then Art & Sounds. CLAUDE MAKES THE ART AND SOUND (Hayden 2026-11-05: not an artist); ASK HIM per character or thing ("what should X look like", "any notable details for X").
+Before generating or adding any asset, show him the exact prompts or files for approval; he says what's okay. No budget for an artist on this game (2026-11-05): keep to the base he needs to list it on the stores, spending as little as possible; the plan is passive income, and maybe a hired artist on a next game.
+Chapter 9 "One More Day" + Day 3 memory (floor 90) BUILT 2026-11-05: pages, "it" in your voice, you pick
+what the System hears (ch9_read_*, ch9_told_*; floor 99 and the ending should use them).
+TESTERS (Hayden 2026-11-05): 0012 + 0027 = you; 0041 = a stranger; floor 99's miniboss = Echo of 0001 (real friend), forced by "it"; the System helps you beat it and keeps talking after.
+Chapter 8 "The Tenants" BUILT 2026-11-05 (Hayden's picks): each god offers a deal (wake the real one /
+make the fire friend real), Anointed Champion = Tess (really gone), friend talks through you + wants
+to outlive it. WHY YOU FORGOT (decided, reveal in Chapter 9): a reset would have wiped the build, you
+held off, it stopped working; you kept going back in, it was killing you, so you locked yourself out
+and cut the memory; "it" protects you. Hayden's plan: finish the story, test it, THEN Art & Sounds.
+Chapter 7 "First Drafts" + third return (floor 70) BUILT 2026-11-05 (Hayden's picks): Titans = your
+first drafts; "it" = the part of you that forgot (HINTS ONLY so far: it has your misspelling; don't
+reveal until later chapters); real friend alive in a coma, missing flyer -> letters -> undated
+memorial card (in order); friend learns from you (floor 61) or a Titan (66-67).
+Chapter 6 "The Top They Promised" BUILT 2026-11-04: route missions; System confesses
+at 60; "it" (what corrects the System), how they got trapped and why you forgot are
+still open. Chapter 5 "The Bidding War" BUILT 2026-11-04; floor 50's choice locks the route.
+RULE (Hayden): story scenes are never locked behind levels or advancement; returns
+home follow floor bosses (StoryLibrary.RETURN_FLOORS).
+Chapter 3 BUILT 2026-11-04 (Marn falls, System helps and is lonely). Quest
+classes BUILT 2026-11-04: Inkblade, Stairwarden, Unsworn, Glitchwalker (SecretPaths;
+names placeholders; found late = join at your tier; player only). Unsworn line:
+no god can bless or curse (godless()). Settings.god_offers off = no offers at all.
+
 Playtest changes BUILT 2026-11-04 (Hayden's picks; README "Playtest changes"):
 campfire floor travel (never ticks guilds/wages), guild actions from Tab,
 donations, merchant weapons + books, declining gods (curse by temper, good
@@ -344,18 +386,21 @@ after: Relaxed 40->40, Normal 33->28, Hard 25->25, Hell 4->5 (noisy; no
 extra guardian XP for the bot on re-climbs). Backspace must never be a Cancel key (LineEdit
 stops editing on ui_cancel). Unwritten text: docs/story/unwritten_text.md.
 
+Second playtest BUILT 2026-11-05 (Hayden): enemies crossing your path start a fight; campfire heals the whole roster incl. bench; bench gear, Unequip all, Auto-equip all (active first, by class + build); god relics (LootTable.RELICS: weapon plus skill, player only, taken back with the blessing, grow with level); every being has its own refusal lines; gifts rare (15% x (1-temper), max 2 per run); every quest gives XP (board 1/3 of a level, story 1/2; Difficulty.QUEST_XP); drops pick a slot first (armour 40%, weapon 35%, accessory 25%).
+ItemLibrary is built lazily (on first get_item): SkillLibrary must be ready first.
+
 Tutorial tips BUILT 2026-10-30 (Hayden's picks): system window that pauses,
 shown the first time you meet each system (~30 tips, all four topics), seen
 list for the whole save file (user://tips.json; tests redirect Tips.path),
 Tab -> Guide to reread, Settings toggle + reset. TipLibrary (data + when
 due), Tips autoload (queue/window). Text is placeholder.
 
-Placeholders to confirm with Hayden later: title "Tower Climber",
+Placeholders to confirm with Hayden later:
 default friend name "Rowan", Ashbound Knight secret-class details,
-FINAL_FLOOR = 60 (long-term target is 100 floors, roguelite-style replayability), tier-2/tier-3/demigod class names, Ashbound's Cinderbrand/Wyrmflame Knight.
+FINAL_FLOOR = 100 (roguelite-style replayability), tier-2/tier-3/demigod class names, Ashbound's Cinderbrand/Wyrmflame Knight.
 Secret classes (Hayden 2026-10-25): a build hint on floors 2-9, their own
-advancement lines, and one free class change + free respec per character
-after floor 20 (tier 1 only).
+advancement lines.
+Third playtest BUILT 2026-11-05 (Hayden's picks): change class free, any time out of battle, to any class at your earned tier, no trial or stat check (GameState.change_class: keep / refund / refund + auto-spend; not demigods); stat resets free; auto-spend on the Stats screen (goal_class, pop-up if several, saved as build_goal; pending until Confirm); the player's lines read "You"; melee skills saying "every enemy" hit every row, those stopping at the nearest row say "you can reach" (tested); multi-hit skills (SkillDef.hits_min/max, 3-5; power is the average total; stagger counts once per use, per target).
 
 ## Architecture
 - Autoloads: ClassRegistry, GameState, Settings. UI is built in code
@@ -409,7 +454,7 @@ after floor 20 (tier 1 only).
   wait there too.
 
 ## Testing
-Every change gets tests in tests/ (26 suites, 2529 checks at last run).
+Every change gets tests in tests/ (26 suites, 5225 checks at last run).
 Run headless from the project folder:
 
     godot --headless --path . --import
@@ -431,6 +476,7 @@ The Dev Sandbox has a floor picker for testing any floor's enemies/bosses.
 - He commits with GitHub Desktop (repo: Wozo-bit/Tower-Climber, private).
 - No rush: quality over speed, work can span days. Don't cut corners to
   save usage; still commit at safe points (tests passing) on feature branches.
+- All game text uses CANADIAN spelling (Hayden 2026-11-05): colour, armour, centre, defence, grey, Mom, but recognize, realize, apologize.
 - He plans to SELL the game. So: no assets, fonts, music or code that
   aren't cleared for commercial use (record the license of anything added);
   no other games' names, characters or trademarks in the game itself; keep

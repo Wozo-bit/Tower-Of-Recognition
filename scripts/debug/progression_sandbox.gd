@@ -257,9 +257,9 @@ func _refresh() -> void:
 	var class_name_text := c.get_class_def().display_name if c.has_class() else "None"
 	if _name_edit and not _name_edit.has_focus():
 		_name_edit.text = c.character_name
-	_info.text = "Level %d   XP %d / %d   Gold %d\nClass: %s\nFree respec available: %s   Next respec cost: %d" % [
+	_info.text = "Level %d   XP %d / %d   Gold %d\nClass: %s" % [
 		c.level, c.xp, CharacterData.xp_to_next(c.level), c.gold,
-		class_name_text, "yes" if c.has_free_respec() else "no", c.next_respec_cost()]
+		class_name_text]
 	_respec_btn.disabled = not c.can_respec()
 	_class_btn.disabled = not c.can_choose_class()
 	if _class_screen.visible:

@@ -11,6 +11,7 @@ var _gold_label: Label
 var _message: Label
 var _stats_overlay: PanelContainer
 var _stats_panel: StatAllocationPanel
+var _class_change_panel: ClassChangePanel
 var _class_screen: ClassSelectionScreen
 var _gear_panel: GearPanel
 var _skills_panel: SkillsPanel
@@ -84,6 +85,23 @@ func _init() -> void:
 	manage_btn.tooltip_text = "Order, rows, the reserve and dismissing companions."
 	manage_btn.pressed.connect(open_manage)
 	header_buttons.add_child(manage_btn)
+	var auto_btn := Button.new()
+	auto_btn.text = "Auto-equip all"
+	auto_btn.tooltip_text = "Hands out everyone's gear and the bag: the active party first, then the reserve, by class and build. Captains keep theirs."
+	auto_btn.pressed.connect(func():
+		_say("Handed out %d pieces of gear." % GameState.auto_equip_all())
+		_rebuild())
+	header_buttons.add_child(auto_btn)
+	var strip_btn := Button.new()
+	strip_btn.text = "Unequip everyone"
+	strip_btn.tooltip_text = "Puts the party's and the reserve's gear in the bag."
+	strip_btn.pressed.connect(func():
+		var n := 0
+		for m in GameState.battle_party() + GameState.companions + GameState.reserve:
+			n += GameState.unequip_all(m)
+		_say("%d pieces went in the bag." % n)
+		_rebuild())
+	header_buttons.add_child(strip_btn)
 	var bestiary_btn := Button.new()
 	bestiary_btn.text = "Bestiary"
 	bestiary_btn.tooltip_text = "Enemies you've fought and what you've learned about them."
@@ -182,6 +200,12 @@ func _init() -> void:
 	_advance_panel.closed.connect(_rebuild)
 	add_child(_advance_panel)
 
+	_class_change_panel = ClassChangePanel.new()
+	_class_change_panel.closed.connect(_rebuild)
+	_class_change_panel.changed.connect(func(member, def):
+		_say("%s is now: %s!" % [member.character_name, def.display_name]))
+	add_child(_class_change_panel)
+
 	_class_screen = ClassSelectionScreen.new()
 	add_child(_class_screen)
 	_class_screen.closed.connect(_rebuild)
@@ -207,7 +231,7 @@ func open_manage() -> void:
 
 
 func close() -> void:
-	if _class_screen.visible or _stats_overlay.visible or _gear_panel.visible or _skills_panel.visible \
+	if _class_change_panel.visible or _class_screen.visible or _stats_overlay.visible or _gear_panel.visible or _skills_panel.visible \
 			or _manage_panel.visible or _bestiary_panel.visible or _quest_panel.visible or _advance_panel.visible or _guild_panel.visible \
 			or _divinity_panel.visible or _guide_panel.visible:
 		return
@@ -216,7 +240,7 @@ func close() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not visible or _gear_panel.visible or _skills_panel.visible or _manage_panel.visible \
+	if not visible or _class_change_panel.visible or _gear_panel.visible or _skills_panel.visible or _manage_panel.visible \
 			or _bestiary_panel.visible or _quest_panel.visible or _advance_panel.visible or _guild_panel.visible \
 			or _divinity_panel.visible or _guide_panel.visible:
 		return
@@ -253,8 +277,18 @@ func _rebuild() -> void:
 	if not GameState.reserve.is_empty():
 		_members_box.add_child(_heading("Reserve"))
 		for member in GameState.reserve:
-			_members_box.add_child(_note("%s   Lv %d   %s   (swap in from Manage party)" % [
-				member.character_name, member.level, member.class_title()]))
+			var row := HBoxContainer.new()
+			var note := _note("%s   Lv %d   %s   (swap in from Manage party)" % [
+				member.character_name, member.level, member.class_title()])
+			note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			row.add_child(note)
+			var stats_btn := _stats_button(member)
+			row.add_child(stats_btn)
+			var gear_btn := Button.new()
+			gear_btn.text = "Gear"
+			gear_btn.pressed.connect(func(): _gear_panel.open(member))
+			row.add_child(gear_btn)
+			_members_box.add_child(row)
 
 	# --- Items ---
 	_actions_box.add_child(_heading("Items"))
@@ -363,14 +397,7 @@ func _member_row(member: CharacterData) -> Control:
 			rename_btn.text = "Rename"
 			rename_btn.pressed.connect(_open_rename.bind(member))
 			buttons.add_child(rename_btn)
-		var stats_btn := Button.new()
-		stats_btn.text = "Stats" + (" (%d)" % member.unspent_points if member.unspent_points > 0 else "")
-		if member.unspent_points > 0:
-			stats_btn.modulate = Color(1, 0.9, 0.4)
-		stats_btn.pressed.connect(func():
-			_stats_panel.bind(member)
-			_stats_overlay.show())
-		buttons.add_child(stats_btn)
+		buttons.add_child(_stats_button(member))
 		var skills_btn := Button.new()
 		skills_btn.text = "Skills" + (" (%d)" % member.skill_picks if member.skill_picks > 0 else "")
 		if member.skill_picks > 0:
@@ -383,7 +410,7 @@ func _member_row(member: CharacterData) -> Control:
 		buttons.add_child(gear_btn)
 		if member == GameState.player:
 			for sid in GameState.unlocked_secret_classes():
-				if member.class_id == sid:
+				if member.in_line_of(sid):
 					continue
 				var sdef := ClassRegistry.get_class_def(sid)
 				var sbtn := Button.new()
@@ -394,7 +421,7 @@ func _member_row(member: CharacterData) -> Control:
 					sbtn.pressed.connect(_confirm_secret_class.bind(member, sdef))
 				else:
 					sbtn.disabled = true
-					sbtn.tooltip_text = "Needs %s (you have %d%%). A respec can help." % [
+					sbtn.tooltip_text = "Needs %s (you have %d%%). Resetting your stats is free." % [
 						sdef.requirement_text(), roundi(sdef.qualification_share(member.stats) * 100)]
 				buttons.add_child(sbtn)
 		if member.can_choose_class():
@@ -410,13 +437,13 @@ func _member_row(member: CharacterData) -> Control:
 			adv_btn.tooltip_text = "Advance to a stronger class (needs its trial)."
 			adv_btn.pressed.connect(func(): _advance_panel.open(member))
 			buttons.add_child(adv_btn)
-		# The one free class change, once the tier-2 gate's floor is beaten.
-		if member.class_change_open():
+		# Free, any time out of battle (Hayden 2026-11-05).
+		if member.can_change_class():
 			var change_btn := Button.new()
 			change_btn.text = "⇄ Change class"
 			change_btn.modulate = Color(0.75, 0.85, 1)
-			change_btn.tooltip_text = "Once per character, before advancing: give up this class, respec for free, and choose again."
-			change_btn.pressed.connect(_confirm_class_change.bind(member))
+			change_btn.tooltip_text = "Free: switch to any class at the tier you've earned."
+			change_btn.pressed.connect(func(): _class_change_panel.open(member))
 			buttons.add_child(change_btn)
 		# NG+ Ascension: shown on a top-tier line once you're in New Game+.
 		if GameState.ng_plus_cycle >= 1 and def and def.tier >= ClassRegistry.ASCENSION_GATE.tier 				and member.class_id != &"ascendant" and not member.ascended:
@@ -429,6 +456,17 @@ func _member_row(member: CharacterData) -> Control:
 			asc_btn.pressed.connect(_confirm_ascend.bind(member))
 			buttons.add_child(asc_btn)
 	return panel
+
+
+func _stats_button(member: CharacterData) -> Button:
+	var b := Button.new()
+	b.text = "Stats" + (" (%d)" % member.unspent_points if member.unspent_points > 0 else "")
+	if member.unspent_points > 0:
+		b.modulate = Color(1, 0.9, 0.4)
+	b.pressed.connect(func():
+		_stats_panel.bind(member)
+		_stats_overlay.show())
+	return b
 
 
 func _confirm_ascend(member: CharacterData) -> void:
@@ -479,34 +517,16 @@ func _open_rename(member: CharacterData) -> void:
 	edit.grab_focus()
 
 
-func _confirm_class_change(member: CharacterData) -> void:
-	var dlg := ConfirmationDialog.new()
-	dlg.title = "Change class"
-	dlg.dialog_text = ("%s gives up the %s?
-
-You get a free respec, then choose a class again (or an unlocked secret class)."
-		+ "
-Learned skills stay; class skills change. This is your only free change.") % [
-		member.character_name, member.get_class_def().display_name]
-	dlg.confirmed.connect(func():
-		if GameState.release_class(member):
-			_say("%s can choose a new class. Respec first if you like (free)." % member.character_name)
-		_rebuild()
-		dlg.queue_free())
-	dlg.canceled.connect(dlg.queue_free)
-	add_child(dlg)
-	dlg.popup_centered()
-
-
 func _confirm_secret_class(member: CharacterData, def: ClassDef) -> void:
 	var dlg := ConfirmationDialog.new()
 	var current := member.get_class_def()
 	dlg.title = "Secret class"
-	dlg.dialog_text = "Become an %s?\n\n%s\n\nThis replaces %s and its skills.\nGear locked to your old class goes back in the bag." % [
-		def.display_name, def.description, current.display_name if current else "your current class"]
+	dlg.dialog_text = "Take up the %s line?\n\n%s\n\nThis replaces %s and its skills, and you join the new line at the tier you've earned.\nGear locked to your old class goes back in the bag.%s" % [
+		def.display_name, def.description, current.display_name if current else "your current class",
+		"\n\nNo god will ever bless or curse you again. You lose your blessing." if def.id == ClassRegistry.GODLESS_LINE else ""]
 	dlg.confirmed.connect(func():
 		if GameState.take_secret_class(member, def.id):
-			_say("%s is now an %s!" % [member.character_name, def.display_name])
+			_say("%s is now: %s!" % [member.character_name, member.class_title()])
 		_rebuild()
 		dlg.queue_free())
 	dlg.canceled.connect(dlg.queue_free)

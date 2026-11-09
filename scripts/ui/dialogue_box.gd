@@ -186,7 +186,7 @@ static func portrait_for(r: DialogueRunner) -> Texture2D:
 	var raw := r.raw_speaker()
 	if raw == "":
 		return null   # narration
-	if raw == "{player}":
+	if raw == DialogueRunner.PLAYER_SPEAKER or raw == "You":
 		return Assets.portrait_for(GameState.player)
 	if raw == "{friend}":
 		return Assets.portrait_for(GameState.childhood_friend())

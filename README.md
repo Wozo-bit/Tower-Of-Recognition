@@ -1,4 +1,4 @@
-# Tower Of Recognition (Godot 4.7)
+# Tower of Recognition (Godot 4.7)
 
 Open `project.godot` in Godot 4.7.2 and press **F5**. The game scales to fit any window size or fullscreen. It opens on the **title screen**:
 
@@ -40,19 +40,66 @@ In the tower: **WASD / arrows** move, **Tab** opens the party menu, **Esc** paus
   - **Other gods react by values:** like-minded gods warm to you once per run; rivals (opposite values, plus patrons you spurned) feud with your guilds, a jealous rival curses you for 5 floors whenever your divinity grows, and bosses sponsored by a rival have 15% more HP.
 - `scripts/story/domain_library.gd` holds the domains, `scripts/story/divinity_state.gd` everything you do as a god (placeholder names, text and numbers; DLC can `register_domain`).
 
+## Second playtest (Hayden 2026-11-05)
+- **Enemies can't pass through you:** swapping tiles with a moving enemy starts the fight (`TowerFloor._enemy_crossing_into`).
+- **Campfires** heal everyone you have, including the bench and anyone past this floor's party cap.
+- **Gear:** benched companions have a Gear button (Tab). The gear screen has Unequip all; Tab has Auto-equip all and Unequip everyone. Auto-equip pools the bag and everyone's gear, gives the active party the best match for their class and build, then the bench. Captains keep theirs.
+- **God items:** `LootTable.RELICS`: 11 gods whose blessed power is an object also give it as gear when they bless you. Only you can equip it, it can't be sold, it grows with the blessing (Rare, Epic, Legendary), and it goes when the blessing does.
+- **Declining:** every being has its own lines (`BlessingState.DECLINE_LINES`). A skill gift is now rare: `GIFT_CHANCE` 15% x (1 - temper), at most `MAX_GIFTS` 2 per run.
+- **Quest XP:** every quest gives XP on top of its rewards: a third of a level for notice-board jobs, half for story and recruit quests. The reserve gets half. `Difficulty.QUEST_XP`: Relaxed x1.25, Normal x1, Hard x0.8, Hell x0.6.
+- **Drops:** a drop picks its slot first: armour 40%, weapon 35%, accessory 25%.
+
 ## The story (Hayden 2026-11-04)
-The plan lives in `docs/story/story_bible.md`. A game inside a game: you're invited to test **Tower of Recognition** (placeholder name), and it pulls you in. Chapters 1 and 2 (floors 1-20) and the first return to the real world are built; the text is a first draft.
+The plan lives in `docs/story/story_bible.md`. A game inside a game: you're invited to test **Tower of Recognition**, a game with the same name as this one, and it pulls you in. All ten chapters (floors 1-100) and the returns to the real world are built; the text is a first draft.
 - **Prologue** (`scenes/prologue.tscn`, `scripts/story/prologue.gd`): your room at night. Walk around and bump things: the PC (the invitation; "Start the test"), the bookshelf (your childhood notebook), the phone and the window. Each one you look at becomes a flag for the run (`prologue_notebook`...), so the tower can call back to it. Esc offers to skip to the client. Settings → "Skip the prologue and home scenes" skips the room for every New Game (it asks first); New Game+ never has it.
-- **The test client** (`scripts/ui/test_client_panel.gd`) is New Game: tester name + difficulty + Ironman, two odd questions, "Name the person you trust most" (the childhood friend), then `[ Tester confirmed. ]` → `[ Synchronising... ]` → a glitched `[ Welcome home. ]` and a white flash. Each answer gives +2 to a stat (shown) and a hidden nudge: "What do you want most?" leans a route, "What are you afraid of losing?" makes a god notice you (+5 interest). Answers are flags (`setup_want_protect`...). Data: `StoryLibrary.SETUP_QUESTIONS`.
+- **The test client** (`scripts/ui/test_client_panel.gd`) is New Game: tester name + difficulty + Ironman, two odd questions, "Name the person you trust most" (the childhood friend), then `[ Tester confirmed. ]` → `[ Synchronizing... ]` → a glitched `[ Welcome home. ]` and a white flash. Each answer gives +2 to a stat (shown) and a hidden nudge: "What do you want most?" leans a route, "What are you afraid of losing?" makes a god notice you (+5 interest). Answers are flags (`setup_want_protect`...). Data: `StoryLibrary.SETUP_QUESTIONS`.
 - **Story scenes** (`scripts/story/story_library.gd`): dialogues in the usual format that start on their own, once per run, on set floors: when you arrive (`"enter"`) or after the floor's miniboss/boss (`"guardian_down"`). A scene you skipped past waits until you're back on one of its floors. Chapter 1 has a beat on every floor 1-10 (wake-up, the memory, the System's first slip, the campfire legend, the thief = a route choice, the carving that matches your notebook, a climber who doesn't come back, "So you're the Tester", `[ You remembered faster this time. ]`). New Game+ wakes up differently (`"ng_plus"` start).
 - **System lines:** a node with `"style": "system"` shows as a centred System line; `"glitch"` flickers through scrambled text first (the System slipping). Sound hooks: `system_line`, `system_glitch`.
 - **Chapters:** one per stage; Tab → Quests shows "Chapter 1: Tester" at the top. Chapters 3-6 are placeholders until written.
+- **Chapter 10, "Recognition":** floors 91-100, including Tester 0012 and 0027 together (floor 94) and Tester 0001 (floor 99, System lines in the battle log: `EnemyDef.battle_lines`). `ch10_top` plays after the final boss, before the ending screen (`TowerFloor._play_last_scene`); your choices at the top replace the ending's title and text (`RouteLibrary.FINAL_CHOICES`) but keep its id, because the id suggests your domains. Flag `ch10_ended` ends the run.
+- **Chapter 9, "One More Day":** the reveal of why you forgot, through pages you can read out to the System or keep (`ch9_read_*`), and "it" talking in your own voice. After floor 90's boss, `RETURN_DAY3` plays: the prologue room as the studio on Day 3, a memory. First runs only.
+- **Chapter 8, "The Tenants":** this run's two gods each offer a deal (`{bid1.wake}`, `{bid2.real}`, lines in `BID_PAIRS`), answered on floor 78. The Host is the climbers who turned back at 60. Your friend passes messages to the System through you, and asks what happens to them afterwards. Floor 80's Anointed Champion is Tess. `ch8_catchup` tells a friend who missed floors 66-67. First runs only.
+- **Chapter 7, "First Drafts":** the Titans are the monsters you drew first, and they call you Maker. You can tell your friend what the System said; if you don't, a Titan does (`ch7_friend_knows`). Hints that the thing correcting the System has your spelling (`ch7_spelling`). First runs only. The third return plays after floor 70's boss, and its objects open in order: flyer, letters, card.
+- **Chapter 6, "The Top They Promised":** each locked route has its own mission and its own price on floors 52-53 and 56-57. Tester 0041 is only glimpsed. After the false summit, the System admits who it is (`ch6_confession`).
+- **Chapter 5, "The Bidding War":** this run's two gods fight over you, your friend asks "Am I real?" and breaks into another voice for a moment, and floor 50's choice locks your route.
+- **Chapter 4, "The Second Hand":** signs of a second person in the notebook and the tower; old code comments use the initials of the names you typed (`{player_initial}`, `{friend_initial}`). Ends `[ You drew the monsters. ]` `[ I did the floors. ]`. The second return plays after floor 40's boss.
+- **Chapter 3, "What the Tower Sends":** the System starts to break format, trying to help you (and being corrected: `[ That message was not sent. ]`) and asking small lonely questions. Marn shows you his ledger, falls holding a door, and is back at floor 30's fire, cheerful, with no memory. Effect `hurt_party` costs a share of current HP, never fatal.
 - **Chapter 2, "The Bidding":** two rival gods bid for you, a different pair per run (`StoryLibrary.BID_PAIRS`: Odin/Loki, Zeus/Typhon, Ra/Apep, Anubis/Set: enemies in their own myths; you draw the pair you lean toward, plus some luck; real `interest`, so their blessings follow), the System warns you off one of them, Tess returns with no memory, the friend says your phone message, the floor's guild wants you (route + standing), and a stray window shows Tester 0041's 31-year session.
-- **Returns to the real world:** `StoryLibrary.return_due()`; the prologue scene in another `Prologue.mode`, with dialogues `<id>_<object>` and `<id>_back`. The first plays after the player's first tier-2 class, first runs only. In New Game+, the Ascending return (`RETURN_ASCEND`) plays from floor 41 once you've Ascended or are the Ascendant: the room exactly as on the first night. The "Skip the prologue and home scenes" setting skips these too, and warns you first.
+- **Returns to the real world:** `StoryLibrary.return_due()`; the prologue scene in another `Prologue.mode`, with dialogues `<id>_<object>` and `<id>_back`. They follow floors, never levels or classes: 20, 40, 70 and 90 on a first run, 40 in New Game+. In New Game+, the Ascending return (`RETURN_ASCEND`) plays from floor 41 once you've Ascended or are the Ascendant: the room exactly as on the first night. The "Skip the prologue and home scenes" setting skips these too, and warns you first.
 - **If the friend isn't with you:** when they're waiting at a campfire (`GameState.friend_away()`: dismissed, or left over your route; the reserve bench doesn't count), their scenes play alternate versions. A dialogue node can hand over to another with `"alt": [{ "if": condition, "node": id }]`; nodes marked `"far": true` are the friend praying from a distance. When they rejoin, `friend_reunion` plays, and telling them what they missed or not (`friend_caught_up` / `friend_not_told`) changes later scenes. It costs no stats or route points. `tests/test_story.gd` walks every path to make sure they never speak in person while away, so any new scene where they speak needs an alternate too.
 - **New Game+ remembers:** the Hall saves `LegacyRecord.past_flags` from your last clear (`StoryLibrary.past_flags`: the bidding pair, who you heard or refused, who blessed you, your ending), and New Game+ starts with them as story flags. The same two gods come back and bring it up. Chapters 1-2 have their own lines for every New Game+ (finish the friend's story, warn Tess and change what happens to her, a second line in the session list).
 - **"The First Prayer" (a god climbing again, floors 1-60):** `god_*` scenes in `StoryLibrary.SCENES`, needing the `god` condition. People pray to you in System windows; what they ask depends on your domain (`DOMAIN_LINES`). Answering can make **believers** (`DivinityState.believers`, shown in Tab → Divinity): each earns `BELIEVER_FAITH` per floor, on top of tithes. Effects: `believers`, `faith`, `halve_believers`, `domain_route`, `patron_interest`, `floor_patron_interest`. Conditions: `god`, `faith`, `min_cycle`, `past_patron`, `floor_guild_yours`. A god's chapters have their own titles (`GOD_CHAPTERS`). Living-religion figures never speak here (`past_patron_voice`).
 - `StoryLibrary.validate()` checks it all (tests/test_story.gd). Scenes don't start by themselves in headless runs (`StoryLibrary.auto_play`), so other test suites stay quiet.
+
+## Quest classes (Hayden 2026-11-04)
+Like the Ashbound Knight: 3 clues (`SecretPaths`), then a guaranteed roaming boss on any later normal floor, then a hidden class with its own 4-tier line. Only the player can take them, from the Tab menu. A side quest starts with your first clue and lists what's left. Finding one late, you join the new line at the tier you've earned (`ClassRegistry.line_at_tier`), and you can't step down within your own line.
+
+| Line (tier 1 to 4) | Stats (55%) | Clues | Boss |
+|---|---|---|---|
+| Inkblade, Margin Walker, Author of Monsters, Author of Towers | Agility + Luck | Floors 2-30 | The Gobbling King |
+| Stairwarden, Longwatch, Keeper of the Ledger, The One Who Stays | Health + Stamina | Floors 28-55, after Marn falls | What Sends Them |
+| Unsworn, Heretic Blade, Godspurner, Nobody's Champion | Strength + Luck | Floors 31-60 | The Gods' Bailiff |
+| Glitchwalker, Seam Runner, Exploit, Out of Bounds | Intelligence + Agility | Floors 45-85 | Missing Entity |
+
+**The Unsworn line can't be blessed or cursed by gods** (`CharacterData.godless`): taking it drops any blessing and curse with no punishment, and gods stop making offers.
+
+**Settings -> God blessing offers** (on by default): when off, no shrines appear and no god visits after a boss, so there's nothing to refuse, no curse for refusing and no gifted skill. A blessing you already hold stays, and the story scenes still play.
+
+## The last 40 floors (Hayden 2026-11-04)
+The climb is 100 floors (`GameState.FINAL_FLOOR`). Everyone in the tower believes floor 60 is the top: its boss opens onto more stairs (`[ Correction. 40 floors remain. ]`, scene `summit_false`).
+
+| Floors | Stage | Family | What's different |
+|---|---|---|---|
+| 61-70 | Titanfall (boss: Cronus) | Titans | Thick-skulled; fear Lightning and Pierce |
+| 71-80 | The Gods' Host (boss: the Anointed Champion) | Soldiers of the gods, never the gods themselves | Fear Dark and Blunt; Holy is wasted on them |
+| 81-90 | The Unfinished (boss: the First Draft) | Glitched | A new weakness and resistance every fight; the Bestiary can't record them |
+| 91-100 | Echoes (boss: Tester 0041) | Past Testers | Echoing: each copies up to 3 damage skills from someone in your party and never runs out of MP |
+
+- **Final boss:** Tester 0041 on a first run. In New Game+, mimics of the character and party that last conquered the tower (`GameState.boss_group`, `register_mimics`; the Hall now keeps `LegacyRecord.party`). They fight at that run's real strength, plus New Game+ and difficulty scaling, with 4x HP for the leader and 2x for the party. Older Hall records have no party saved, so the leader comes alone.
+- **Tier 4:** floor 70 + level 60, +30% stats, one mastery per tier-3 class (39, demigods' and the Ashbound line's included), each with a capstone skill. The Ascendant gains Ascendant's Throne at that gate and stays the strongest.
+- **Boss mechanics:** bosses from floor 90 run all three, at 75%, 50% and 25% HP.
+- **Story:** only the false summit and the floor-100 meeting have scenes. Floors 21-100 of the first-run story are still to write (outline in the story bible). The god storyline's "last stairs" scene moved from floor 60 to floor 100.
+- **Sim** (bot, 24 runs to floor 100, after tuning the new bosses): Normal 15/24, Hard 7/24. Relaxed cleared 16/16 before that tuning. The bot doesn't brace for blasts or scout glitched enemies.
 
 ## Playtest changes (Hayden 2026-11-04)
 - **Floor travel:** every campfire offers Travel to any floor you've reached (`TravelPanel`, `GameState.travel_to_floor`). Plain floors refill with enemies; beaten minibosses and bosses stay dead (`cleared_guardians`). Going back never takes a guild-AI turn, charges wages or moves your checkpoint, including walking back up old stairs (`climb_to_floor`).
@@ -67,7 +114,7 @@ The plan lives in `docs/story/story_bible.md`. A game inside a game: you're invi
 - **The late game** (`FloorMods`, `BattleManager`):
   - **Floor twists:** from floor 30, about a third of plain floors have one: Null Field, Mana Well, Silent Floor, Gold Vein, Blood Moon.
   - **Enemies adapt:** from floor 30, after 5 uses of a skill by one character on one floor, each further use does 10% less, down to half. Basic attacks don't fade; a new floor resets it.
-  - **Boss mechanics:** bosses from floor 30 get one mechanic at 50% HP, from floor 50 two (at 60% and 30%): reinforcements, a barrier only a weakness breaks (or 3 rounds), or a charged blast to brace for. Each also makes them hit 15% harder. Late minibosses just enrage. A boss's mechanics follow from its id.
+  - **Boss mechanics:** bosses from floor 30 get one mechanic at 50% HP, from floor 50 two (at 60% and 30%): reinforcements, a barrier only a weakness breaks (or 3 rounds), or a charged blast to brace for. Each also makes them hit 10% harder. Late minibosses just enrage. A boss's mechanics follow from its id.
 - **Ashbound:** "The Ashen Trail" quest starts with your first clue and lists what's left. The Ashen Wyrmling now comes however late you find the last clue (it used to stop after floor 29).
 - **Backspace** works in text boxes again (it was also a Cancel key, which stops editing). **Ironman** campfires no longer say they revive anyone. The Tab menu's items and spells scroll. The "(Placeholder)" tags are gone; `docs/story/unwritten_text.md` lists the temporary text.
 
@@ -108,8 +155,8 @@ The plan lives in `docs/story/story_bible.md`. A game inside a game: you're invi
 | `scripts/data/stat_block.gd` | Base vs allocated points, derived stats (HP, defenses, dodge, crit). Balance numbers at the top. |
 | `scripts/data/class_def.gd` | A class definition: required stats + threshold. Has `tier`, `advances_from`, `is_secret` ready for later. |
 | `scripts/autoload/class_registry.gd` | Autoload `ClassRegistry`. Registers the 5 tier-1 classes; also loads any `ClassDef` `.tres` in `res://data/classes/`. |
-| `scripts/data/character_data.gd` | Level/XP, points per level (5 up to lv5, 3 after), allocation, class choice at lv10, respec rules. |
-| `scripts/ui/stat_allocation_panel.gd` | Allocation UI with a pending pool + Confirm, so a misclick doesn't cost a respec. |
+| `scripts/data/character_data.gd` | Level/XP, points per level (5 up to lv5, 3 after), allocation, auto-spend, class choice at lv10, class changes, stat resets. |
+| `scripts/ui/stat_allocation_panel.gd` | Allocation UI with a pending pool + Confirm, auto-spend and free stat resets. |
 | `scripts/ui/class_selection_screen.gd` | Level-10 overlay that lists every class you qualify for, or how close you are to each one. |
 | `scripts/debug/progression_sandbox.gd` | Dev Sandbox: test harness with buttons to gain XP, level up, respec, add gold and start test fights. |
 | `tests/test_progression.gd` | 40 rule checks. Run: `godot --headless res://tests/test_progression.tscn` |
@@ -199,8 +246,8 @@ The plan lives in `docs/story/story_bible.md`. A game inside a game: you're invi
 - **The Ashbound clues** all come from this system now: the **scorched mural** (40% of normal floors 11–29), the **merchant's story** (floor 10+) and the **glint in the embers** (by the campfire on rest floors and cleared boss floors from floor 10).
 - **Placeholder content only:** the merchant, lore objects and the recruit roster below. Real story content comes later.
 
-### The recruit roster (Hayden 2026-10-25)
-Twelve recruits across the 60 floors. Their names follow each one's origin (the god who blessed them). All their text is placeholder.
+### The recruit roster (Hayden 2026-10-25, 11 more 2026-11-04)
+Twenty-three recruits. A test makes sure every route can reach a full party of 9 in every run, without wanderers, captives or demigods (your friend counts, and never leaves). `"pitch_if"` lets a recruit remember what you did. The first twelve: Their names follow each one's origin (the god who blessed them). All their text is placeholder.
 
 | Recruit | Class | How you meet them | Blessed by | Likes / dislikes |
 |---|---|---|---|---|
@@ -216,6 +263,8 @@ Twelve recruits across the 60 floors. Their names follow each one's origin (the 
 | Old Fenn | Tank | campfire, rest floors 25+ (*wanderer*) | | Vigilante / Villain |
 | Kael | Rogue | **rescue** fight, floors 30–38 (*wanderer*) | | Villain / Hero |
 | Vesna | Mage | **hire** 1500g, rest floors 35+ (*wanderer*) | | Villain / Hero |
+
+The eleven added later: Oren (Monk, favor, rest 10+, Hero), Dragan (Tank, campfire, rest 10+, Villain), Wren (Rogue, campfire, rest 15+, anyone), Tobin (Support, hire 800g, rest 15+, anyone), Sabine (Mage, hire 1000g, rest 20+, Villain), and six who only come once your route locks, from floor 50: Hilde and Cormac (Hero), Belit and Ulfar (Villain), Ines and Bren (Vigilante).
 
 - **Ways to meet them** (`NpcLibrary` "recruit" → `"meet"`):
   - **campfire:** talk and they join.
@@ -496,7 +545,7 @@ isn't one. **`assets/README.md`** lists every file name.
 - **What your route changes:**
   - **The ending:** beating the final floor shows your route's ending, or **The Wanderer** if you never leaned.
   - **Quests and dialogue:** `route`, `not_route`, `route_locked` and `no_route` conditions, plus `route_points` and `lock_route` effects.
-  - **Who joins and stays:** each companion has values (`"likes"` / `"dislikes"`). Lean into a route they dislike and they warn you in a conversation. Keep going (20 points, or a lock) and they leave: their gear goes to your bag, they wait by a campfire, and they refuse to rejoin until you turn back. Your childhood friend can leave too. A recruitable NPC won't join someone on a route they dislike.
+  - **Who joins and stays:** each companion has values (`"likes"` / `"dislikes"`). Lean into a route they dislike and they warn you in a conversation. Keep going (20 points, or a lock) and they leave: their gear goes to your bag, they wait by a campfire, and they refuse to rejoin until you turn back. Your childhood friend never leaves over your route: your choices change who they become instead (`GameState._check_friend_mood`, and scenes that branch on the route). A recruitable NPC won't join someone on a route they dislike.
   - **Shops:** heroes pay 10% less and villains 25% more (`GameState.HERO_PRICE_MULT` / `VILLAIN_PRICE_MULT`). A locked-in villain is refused by the merchant, but a **hooded trader (the black market)** appears on rest floors for anyone on the villain route, with its own stock and prices.
   - **Classes:** a class can have a `required_route` (Paladin, Warlock and Executioner do). It's hidden and can't be taken on other routes.
   - **Bounties:** besides the family bounty, board jobs can be a **Shady job** (more gold, nudges villain), a **Plea for help** (less gold, nudges hero) or **Wanted** (nudges vigilante).
@@ -566,6 +615,8 @@ Picked at **New Game** (and again when starting **New Game+**). During a run you
 - Numbers: `scripts/data/difficulty.gd`.
 
 ### What the balance simulator says
+**After the 11 new recruits** (2026-11-04), Normal on the bot: 16/48 clears to floor 100, against 30/48 with the five early new recruits skipped, and 14/24 with just Oren and Dragan skipped. No enemy changed: the bot takes everyone it meets in order and never chooses a party, so an early second tank seems to take a damage dealer's seat. Treat this as a bot limit until real play says otherwise.
+
 **After the playtest changes** (2026-11-04), 40 runs per difficulty, before -> after: Relaxed 40 -> 40, Normal 33 -> 28, Hard 25 -> 25, Hell 4 -> 5 (with the back-row pressure; one batch of 40 swings by several runs, the same changes without it gave 29 / 17 / 8). The bot doesn't use merchants' weapons, travel, Defend for blasts or barriers' weaknesses on purpose, and beaten guardians no longer give it extra XP when it re-climbs after a wipe (its level at the floor-10 boss fell from about 15.6 to 11.4 on Normal), so most of the drop is at the first two bosses. Late fights still cost the bot only 1-2% party HP, so the twists and boss mechanics add variety more than danger. To re-check with real play.
 
 `tools/balance_sim.tscn` plays whole runs with a bot: it fights everything, uses weaknesses, heals, buffs, keeps its summons up, takes a heal skill when the party has none, recruits, equips gear and shops, but never grinds. It also skips roaming bosses and never moves rows, Defends or Guards, so a real player should do somewhat better. The bot is noisy (battles roll their own dice), so compare 20+ runs.
@@ -640,7 +691,9 @@ The tower is split into **stages of 10 floors**, set up in `scripts/tower/stage_
   3. **Beating it is the final step.** It unlocks the secret class and announces it on the floor.
 - **Ashbound Knight** is the placeholder secret class. It needs 55% of allocated points in Strength + Intelligence, and it's **player character only**. Its skills are Ember Strike (melee, ignores 30% defense) and Ashen Nova (magic, hits all enemies). Once unlocked, it's offered at the level-10 class screen if you qualify. If you already have a class, the party menu has a **✦ Ashbound Knight** button that switches to it (it replaces your class and skills). Locked secret classes never show up anywhere, including the "how close you are" hints.
 - **Its own advancements** (Hayden 2026-10-25), so taking it isn't a step down: Ashbound Knight → **Cinderbrand Knight** (tier 2: Cinder Cleave, Ashen Ward) → **Wyrmflame Knight** (tier 3: Wyrmflame). Same gates and trials as other lines; placeholder names.
-- **One free class change** (Hayden 2026-10-25): once floor 20 is beaten, each character still in a tier-1 class gets a **⇄ Change class** button in Tab (a notice on floor 21 says so). It gives up the class, grants a free respec, and lets them choose again (any class they qualify for, or an unlocked secret class for the player). Learned skills stay. Once per character (`CharacterData.class_change_used`, saved), and not after advancing.
+- **Free class changes** (Hayden 2026-11-05): anyone with a class has a **⇄ Change class** button in Tab, any time out of battle. It lists every class at the tier they've earned, with no trial or stat check, and asks whether to keep their stats, refund them, or refund and auto-spend toward the new class. Route-only classes need the route, secret lines are the player's once unlocked, and demigods keep their own class. Gear locked to the old class goes back in the bag.
+- **Stat resets** are free too: **Reset stats** on the Stats screen. The class stays.
+- **Auto-spend** (Stats screen) fills the pending points toward the class being built for (`CharacterData.goal_class`): the next advancement, or a pop-up asks if there are several, and it's remembered. Nothing is spent until Confirm. Past the top of a line, it follows the class's own stats.
 - In the sandbox, **🔍 Find next Ashbound clue** gives you the clues one at a time for testing.
 
 ### Loot
@@ -661,7 +714,7 @@ Most of these were set by the balance pass with `tools/balance_sim` (see Difficu
 - Difficulty modes: `scripts/data/difficulty.gd`
 - Enemy curve, rewards and group size: top of `game_state.gd` (`ENEMY_SCALE_*`, `REWARD_EXP`, `GOLD_REWARD_EXP`, `MAX_EXTRA_ENEMIES`); `Combatant.ENEMY_HP_MULT`; `StageLibrary.GUARDIAN_MULT` and each theme's `power`
 - Guild AI activity: top of `guild_ai.gd` (`ACT_CHANCE`, `*_WEIGHT`, `PATRON_PULL`, `FEUD_WAR_BONUS`, `UPSTART_WAR_BONUS`); beings' `TEMPER` in `being_library.gd`
-- Respec cost: 500 gold, doubling each paid respec (`RESPEC_BASE_COST / RESPEC_COST_MULTIPLIER`)
+- Auto-spend: `CharacterData.AUTO_SPEND_SHARE` (75% of spent points in the goal's stats)
 - Derived stat rates: top of `stat_block.gd`
 - Combat math: top of `damage_calc.gd`
 - Skill numbers: `skill_library.gd`

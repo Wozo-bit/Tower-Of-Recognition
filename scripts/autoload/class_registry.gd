@@ -16,17 +16,22 @@ var _classes: Dictionary = {}  # StringName -> ClassDef
 const ADVANCEMENT_GATES := {
 	2: { "floor": 20, "level": 25 },
 	3: { "floor": 40, "level": 45 },   # Hayden 2026-10-25 (may change)
+	4: { "floor": 70, "level": 60 },   # Hayden 2026-11-04
 }
 
 ## Every stat +x% per tier. The Ascendant (NG+) always gets ASCENDANT_EDGE
 ## more than the best normal tier, so it stays the strongest (design rule).
-const TIER_STAT_BONUS := { 2: 0.1, 3: 0.2 }
+const TIER_STAT_BONUS := { 2: 0.1, 3: 0.2, 4: 0.3 }
 const ASCENDANT_EDGE := 0.1
 ## Demigods' own classes are a little stronger than their tier.
 const DEMIGOD_EDGE := 0.05
 ## NG+: a character in a top-tier class can Ascend their own line (below the Ascendant).
 const ASCENSION_BONUS := 0.05
 const ASCENSION_GATE := { "floor": 40, "level": 50, "tier": 3 }
+## Share of spent points a quest class wants in its two stats.
+const QUEST_CLASS_THRESHOLD := 0.55
+## This line can't be blessed or cursed by gods (CharacterData.godless).
+const GODLESS_LINE := &"unsworn"
 
 
 func _init() -> void:
@@ -35,6 +40,8 @@ func _init() -> void:
 	_register_tier_three()
 	_register_demigods()
 	_register_secret()
+	_register_tier_four()
+	_register_quest_classes()
 	_load_resource_classes()
 
 
@@ -111,6 +118,101 @@ func _register_tier_three() -> void:
 		var id := StringName(String(from) + "_t3")
 		_advanced(id, tier3[from][0], "" + tier3[from][1], from, parent.required_stats,
 			parent.threshold, parent.required_route)
+
+
+## Tier 4 (floor 70, Hayden 2026-11-04): one last mastery for every tier-3 class,
+## demigods' and the secret line's included. Same build and route as the class
+## before it. Placeholder names. Runs after everything tier 3 is registered.
+func _register_tier_four() -> void:
+	var tier4 := {
+		&"bastion_t3": ["Eternal Bulwark", "The last wall left standing."],
+		&"juggernaut_t3": ["Titanbreaker", "It hits. Things stop being there."],
+		&"paladin_t3": ["Exarch", "Judgment wearing armour."],
+		&"pyromancer_t3": ["Ember Sovereign", "Everything burns eventually. They just hurry it along."],
+		&"stormcaller_t3": ["Storm Eternal", "The storm stopped asking."],
+		&"warlock_t3": ["Pact Sovereign", "Every debt in the tower is owed to them now. Villain route only."],
+		&"sharpshooter_t3": ["Godshot", "They've aimed higher."],
+		&"ranger_t3": ["Gale Sovereign", "The wind carries their arrows out of habit."],
+		&"assassin_t3": ["Silent End", "You'll never know. Nobody has."],
+		&"trickster_t3": ["Luck Incarnate", "The dice stopped pretending."],
+		&"executioner_t3": ["Last Judge", "The sentence was always this. Vigilante route only."],
+		&"cleric_t3": ["Living Miracle", "Where they walk, the wounded stand."],
+		&"oracle_t3": ["Fate Weaver", "They don't see the thread. They hold it."],
+		&"berserker_t3": ["War Incarnate", "War found out what it was for."],
+		&"warlord_t3": ["Emperor of the Climb", "Every floor knows their name, and pays."],
+		&"grandmaster_t3": ["Enlightened Fist", "There was never a difference between the body and the blow."],
+		&"shadowfist_t3": ["Void Fist", "A blow from where nothing is."],
+		&"stormblade_t3": ["Thunder Saint", "Lightning stops to bow."],
+		&"arcane_knight_t3": ["Spell Fortress", "A castle that walks and reads."],
+		&"blademaster_t3": ["Sword God", "They have stopped drawing it. It's enough that it's there."],
+		&"runeguard_t3": ["Rune Sovereign", "The last rune is the one that holds the tower up."],
+		&"beastcaller_t3": ["Wild King", "The tower has animals in it. All of them are theirs."],
+		&"spiritbinder_t3": ["Spirit Sovereign", "The dead take their orders gently."],
+		&"necromancer_class_t3": ["Death Incarnate", "Death stopped being a door, and became a job. Villain route only."],
+		&"cinderbrand_t3": ["Ashen Sovereign", "Everything that ever burned answers to them."],
+		&"lionheart_t3": ["Thirteenth Labor", "The one the songs don't have yet."],
+		&"gorgonbane_t3": ["Written in Stars", "They hung him in the sky. He climbed down."],
+		&"myrmidon_lord_t3": ["Glory Undying", "He chose the short life. The tower disagreed."],
+		&"king_of_uruk_t3": ["He Who Saw the Deep", "He looked for the end of death, and found the stairs."],
+		&"hound_of_ulster_t3": ["The Warp Spasm", "Even his allies stand back."],
+		&"dragonslayer_t3": ["Dragon's Heir", "He tasted the blood, and understood everything."],
+		&"labyrinth_hero_t3": ["Master of the Maze", "Nobody finds him, and nobody gets out."],
+		&"amazon_queen_t3": ["Queen Unconquered", "No one has ever taken the belt."],
+		&"songweaver_t3": ["Song at the Gate", "This time he doesn't look back."],
+		&"swift_huntress_t3": ["She Was Never Caught", "They've stopped running after her."],
+		&"wild_man_t3": ["Brother Unbroken", "They said death would part them. It's trying."],
+		&"fianna_captain_t3": ["Thumb of All Knowing", "He knows how this ends. He's still going."],
+		&"oni_slayer_t3": ["Peach Immortal", "The oni have started telling stories about him."],
+		&"sky_lancer_t3": ["He Reached Olympus", "The fall was only ever a rumour."],
+	}
+	for from in tier4:
+		var parent := get_class_def(from)
+		var id := StringName(String(from).trim_suffix("_t3") + "_t4")
+		_advanced(id, tier4[from][0], tier4[from][1], from, parent.required_stats, parent.threshold, parent.required_route)
+		var def := get_class_def(id)
+		def.unique_to = parent.unique_to
+		if parent.unique_to != &"":
+			def.stat_bonus_pct = TIER_STAT_BONUS[4] + DEMIGOD_EDGE
+
+
+## Quest classes like the Ashbound Knight (Hayden 2026-11-04), one per story
+## thread: found through SecretPaths, each with its own 4-tier line. Placeholder names.
+func _register_quest_classes() -> void:
+	_quest_line(&"inkblade", "Inkblade", "You drew this hero when you were nine. They're faster than you remember.", [Stats.Type.AGILITY, Stats.Type.LUCK],
+		&"margin_walker", "Margin Walker", "Lives in the space around the words.", "Author of Monsters", "Everything you ever drew answers when you call.", "Author of Towers", "You wrote this floor. You wrote all of them. Didn't you?")
+	_quest_line(&"stairwarden", "Stairwarden", "Marn's trade: hold the door so someone else gets out.", [Stats.Type.HEALTH, Stats.Type.STAMINA],
+		&"longwatch", "Longwatch", "Awake when everyone else needs to sleep.", "Keeper of the Ledger", "Writes down everyone. Forgets no one.", "The One Who Stays", "Somebody has to. They decided a long time ago.")
+	_quest_line(&"unsworn", "Unsworn", "Refused every god who bid. No god can bless or curse you, and any blessing you hold is lost.", [Stats.Type.STRENGTH, Stats.Type.LUCK],
+		&"heretic_blade", "Heretic Blade", "Cuts what was never meant to bleed.", "Godspurner", "Heaven keeps a list. You're at the top of it.", "Nobody's Champion", "No one lent you this strength. Nobody can take it back.")
+	_quest_line(&"glitchwalker", "Glitchwalker", "You found where the tower doesn't quite meet. You can walk through that.", [Stats.Type.INTELLIGENCE, Stats.Type.AGILITY],
+		&"seam_runner", "Seam Runner", "Takes corners the walls didn't plan on.", "Exploit", "Finds the thing the tower forgot to check.", "Out of Bounds", "Standing somewhere that was never built.")
+
+
+func _quest_line(root: StringName, display: String, desc: String, stats: Array, t2: StringName, t2_name: String,
+		t2_desc: String, t3_name: String, t3_desc: String, t4_name: String, t4_desc: String) -> void:
+	var typed: Array[int] = []
+	typed.assign(stats)
+	var base := ClassDef.create(root, display, desc, typed, QUEST_CLASS_THRESHOLD)
+	base.is_secret = true
+	register(base)
+	var t3 := StringName(String(root) + "_t3")
+	_advanced(t2, t2_name, t2_desc, root, stats, QUEST_CLASS_THRESHOLD)
+	_advanced(t3, t3_name, t3_desc, t2, stats, QUEST_CLASS_THRESHOLD)
+	_advanced(StringName(String(root) + "_t4"), t4_name, t4_desc, t3, stats, QUEST_CLASS_THRESHOLD)
+
+
+## The class in `root`'s line at `tier` (or the highest it has). Late finds join
+## their new line at the tier you've already earned.
+func line_at_tier(root: StringName, tier: int) -> StringName:
+	var id := root
+	var left := tier - get_class_def(root).tier
+	while left > 0:
+		var next := advancements_for(id)
+		if next.is_empty():
+			break
+		id = next[0].id
+		left -= 1
+	return id
 
 
 ## Demigods' own classes (Hayden 2026-10-25): only that demigod can have one

@@ -22,6 +22,7 @@ func _ready() -> void:
 	test_uniques_and_loot()
 	test_save_roundtrip()
 	test_secret_line()
+	test_quest_classes()
 	test_class_change()
 	GameState.delete_slot(1)
 	GameState.reset_run()
@@ -109,10 +110,21 @@ func test_tree_is_complete() -> void:
 	var advanced := ClassRegistry.get_all().filter(func(d): return d.advances_from != &"")
 	check(QuestLibrary.trials().size() == advanced.size() and QuestLibrary.validate_all().is_empty(), "every advanced class has a valid trial quest")
 	check(SkillLibrary.get_skill(&"magma_burst").elements == [Element.Type.FIRE, Element.Type.EARTH], "deeper elements: Magma Burst = Fire + Earth")
-	check(GameState.FINAL_FLOOR == 60, "the climb now ends on floor 60")
+	check(GameState.FINAL_FLOOR == 100, "the climb ends on floor 100")
 	check(ClassRegistry.ADVANCEMENT_GATES.get(3, {}) == { "floor": 40, "level": 45 }, "tier 3: floor 40 + level 45")
-	check(ClassRegistry.advancements_for(&"pyromancer_t3").is_empty() and ClassRegistry.advancements_for(&"ascendant").is_empty(),
-		"tier 3 is the top for now; secret/NG+ classes don't advance")
+	check(ClassRegistry.ADVANCEMENT_GATES.get(4, {}).get("floor") == 70, "tier 4: floor 70")
+	var all_t3 := ClassRegistry.get_all().filter(func(d): return d.tier == 3)
+	var no_t4 := all_t3.filter(func(d): return ClassRegistry.advancements_for(d.id).size() != 1)
+	check(no_t4.is_empty(), "every tier-3 class has exactly one tier 4 (%s)" % [no_t4.map(func(d): return d.id)])
+	var tier4 := ClassRegistry.get_all().filter(func(d): return d.tier == 4)
+	check(tier4.size() == all_t3.size(), "%d tier-4 classes" % tier4.size())
+	var no_skill := tier4.filter(func(d): return not SkillLibrary.CLASS_SKILLS.has(d.id) or d.id == &"" or SkillLibrary.get_skill_or_null(SkillLibrary.CLASS_SKILLS[d.id][0]) == null)
+	check(no_skill.is_empty(), "each has its capstone skill %s" % [no_skill.map(func(d): return d.id)])
+	check(tier4.all(func(d): return ClassRegistry.get_class_def(d.advances_from).required_route == d.required_route), "route-only lines stay route-only")
+	check(tier4.all(func(d): return ClassRegistry.get_class_def(d.advances_from).unique_to == d.unique_to), "a demigod's line stays theirs")
+	check(ClassRegistry.advancements_for(&"pyromancer_t4").is_empty() and ClassRegistry.advancements_for(&"ascendant").is_empty(),
+		"tier 4 is the top; the Ascendant doesn't advance")
+	check(ClassRegistry.get_class_def(&"ascendant").stat_bonus_pct > ClassRegistry.get_class_def(&"lionheart_t4").stat_bonus_pct, "the Ascendant stays the strongest")
 	var asc := ClassRegistry.get_class_def(&"ascendant")
 	var stronger := ClassRegistry.get_all().all(func(d): return d.id == &"ascendant" or d.stat_bonus_pct + ClassRegistry.ASCENSION_BONUS < asc.stat_bonus_pct)
 	check(stronger, "the Ascendant stays the strongest, even against Ascended lines")
@@ -233,28 +245,136 @@ func test_secret_line() -> void:
 		"a hint before the level-10 class choice (not one of the 3 clues)")
 
 
-## One free class change after the tier-2 gate's floor, while still tier 1.
+## Hayden 2026-11-04: quest classes like the Ashbound Knight, one per story thread.
+func test_quest_classes() -> void:
+	print("Quest classes")
+	check(SecretPaths.PATHS.size() == 5, "five secret paths")
+	var seen_floors := []
+	for id in [&"notebook", &"ledger", &"godless", &"seams"]:
+		var path: Dictionary = SecretPaths.PATHS[id]
+		var root: StringName = path.class_id
+		var def := ClassRegistry.get_class_def(root)
+		check(def != null and def.is_secret and def.tier == 1, "%s is a hidden class" % root)
+		var line := []
+		var at := root
+		while true:
+			line.append(at)
+			var next := ClassRegistry.advancements_for(at)
+			if next.is_empty():
+				break
+			at = next[0].id
+		check(line.size() == 4 and ClassRegistry.get_class_def(at).tier == 4, "%s has a 4-tier line (%s)" % [root, line])
+		for c in line:
+			check(not SkillLibrary.CLASS_SKILLS.get(c, []).is_empty(), "%s has skills" % c) if SkillLibrary.CLASS_SKILLS.get(c, []).is_empty() else null
+		var roamer := StageLibrary.roamer_info(path.final_roamer)
+		check(roamer.get("secret_path") == id and EnemyLibrary.get_enemy_or_null(path.final_roamer) != null, "%s's boss exists" % id)
+		seen_floors.append(roamer.min_floor)
+		# Every clue has an object you can find.
+		for f in path.clue_flags:
+			var has_object := NpcLibrary.NPCS.values().any(func(n): return n.get("gone_flag") == f)
+			check(has_object, "%s can be found" % f) if not has_object else null
+		var q := QuestLibrary.QUESTS.values().filter(func(x): return x.get("auto_start", {}).get("any_flag", []).has(path.clue_flags[0]))
+		check(q.size() == 1 and q[0].steps.size() == 4, "%s has a quest listing its clues" % id)
+		# The whole path.
+		GameState.reset_run()
+		GameState.player = GameState.make_premade("Finder", &"rogue", { Stats.Type.AGILITY: 10 })
+		GameState.player.legacy_id = "quest-%s" % id
+		check(not GameState.unlocked_secret_classes().has(root), "%s starts locked" % root)
+		for f in path.clue_flags:
+			GameState.set_flag(f)
+		check(StageLibrary.guaranteed_roamer(90, [], GameState.story_flags).get("spawn") == "secret", "all clues bring a boss, however late")
+		GameState._check_secret_unlock(path.final_roamer)
+		check(GameState.unlocked_secret_classes().has(root), "beating it unlocks %s" % root)
+	check(seen_floors == [8, 27, 33, 47], "they spread up the climb (%s)" % [seen_floors])
+	check(QuestLibrary.validate_all().is_empty(), "quests validate %s" % [QuestLibrary.validate_all()])
+	check(StoryLibrary.validate().is_empty(), "story validates")
+	check(DialogueLibrary.validate_all().is_empty(), "clue dialogues validate")
+	# Found late: you join at the tier you've earned.
+	check(ClassRegistry.line_at_tier(&"inkblade", 1) == &"inkblade" and ClassRegistry.line_at_tier(&"inkblade", 3) == &"inkblade_t3"
+		and ClassRegistry.line_at_tier(&"inkblade", 9) == &"inkblade_t4", "the line by tier")
+	GameState.reset_run()
+	var hero := GameState.make_premade("Late", &"rogue", { Stats.Type.AGILITY: 12, Stats.Type.LUCK: 8 })
+	GameState.player = hero
+	GameState.set_flag(&"notebook_unlocked")
+	hero.class_id = &"assassin_t3"
+	hero._apply_class_bonus()
+	var ink := ClassRegistry.get_class_def(&"inkblade")
+	check(hero.can_take_secret_class(ink), "a tier-3 rogue can switch")
+	check(GameState.take_secret_class(hero, &"inkblade"), "and does")
+	check(hero.class_id == &"inkblade_t3", "joining at tier 3 (%s)" % hero.class_id)
+	check(not hero.can_take_secret_class(ink), "already in that line: no going back down")
+	check(hero.all_skills().any(func(s): return s.id == &"full_page") and hero.all_skills().any(func(s): return s.id == &"ink_slash"), "with the line's skills")
+	var ash := ClassRegistry.get_class_def(&"ashbound_knight")
+	hero.class_id = &"cinderbrand"
+	check(hero.in_line_of(&"ashbound_knight") and not hero.can_take_secret_class(ash), "the Ashbound line can't step down either")
+	# The Unsworn: no god can reach them.
+	GameState.set_flag(&"godless_unlocked")
+	var heretic := GameState.make_premade("Heretic", &"warrior", { Stats.Type.STRENGTH: 12, Stats.Type.LUCK: 8 })
+	GameState.player = heretic
+	heretic.bless(&"thor", 2)
+	heretic.curse(&"loki", 1, 50)
+	check(heretic.is_blessed() and heretic.curse_id == &"loki" and not heretic.godless(), "blessed and cursed before")
+	GameState.blessings.add_interest(&"odin", 50)
+	check(GameState.blessings.wants_to_offer(&"odin"), "a god is ready to offer")
+	check(GameState.take_secret_class(heretic, &"unsworn"), "takes the class")
+	check(heretic.godless() and not heretic.is_blessed() and heretic.curse_id == &"", "blessing and curse both gone")
+	check(not GameState.blessings.wants_to_offer(&"odin") and GameState.blessings.offering_beings().is_empty(), "no god offers anymore")
+	heretic.curse(&"loki", 1, 50)
+	check(heretic.curse_id == &"", "curses don't land")
+	heretic.class_id = &"unsworn_t4"
+	check(heretic.godless(), "the whole line, at every tier")
+	var plain := GameState.make_premade("Plain", &"warrior", { Stats.Type.STRENGTH: 12 })
+	plain.curse(&"loki", 1, 50)
+	check(plain.curse_id == &"loki" and not plain.godless(), "everyone else can still be cursed")
+	GameState.reset_run()
+	# Companions can't take them (the path is the player's).
+	var pal := GameState.make_premade("Pal", &"rogue", { Stats.Type.AGILITY: 12, Stats.Type.LUCK: 8 })
+	check(not GameState.take_secret_class(pal, &"inkblade"), "quest classes are yours alone")
+	GameState.reset_run()
+
+
+## Free class changes, any time, at your earned tier (Hayden 2026-11-05).
 func test_class_change() -> void:
 	print("Free class change")
 	_fresh()
 	var c := _veteran(&"mage", MAGE)
-	GameState.highest_floor = 20
-	check(not c.class_change_open(), "not before floor 20 is beaten")
-	GameState.highest_floor = 21
-	check(c.class_change_open(), "open on floor 21")
+	var spent := c.stats.total_allocated()
+	var tank := ClassRegistry.get_class_def(&"tank")
 	c.gold = 0
-	check(GameState.release_class(c) and not c.has_class() and c.can_choose_class(), "give up the class...")
-	check(c.next_respec_cost() == 0 and c.respec(), "...respec for free...")
-	c.apply_allocation({ Stats.Type.HEALTH: c.unspent_points / 2, Stats.Type.STAMINA: c.unspent_points - c.unspent_points / 2 })
-	check(c.choose_class(ClassRegistry.get_class_def(&"tank")) and c.class_id == &"tank", "...and choose again")
-	check(not c.class_change_open(), "only once")
+	check(c.can_change_class(), "open from the start")
+	check(GameState.class_change_options(c).has(tank), "every class at your tier")
+	check(not GameState.class_change_options(c).has(c.get_class_def()), "not the one you're in")
+	check(GameState.change_class(c, tank) and c.class_id == &"tank", "changed, with stats that don't qualify")
+	check(c.stats.total_allocated() == spent and c.gold == 0, "keep: stats stay, and it's free")
+	check(GameState.change_class(c, ClassRegistry.get_class_def(&"mage"), GameState.ClassChangeStats.REFUND) and c.stats.total_allocated() == 0, "refund: points back")
+	check(c.unspent_points >= spent, "refund: points to spend")
+	check(GameState.change_class(c, tank, GameState.ClassChangeStats.AUTO_SPEND) and c.unspent_points == 0 and tank.qualifies(c.stats), "auto-spend: spent toward the new class")
+	check(GameState.change_class(c, ClassRegistry.get_class_def(&"mage")), "and back again: as often as you like")
+	# Advanced: any class at your tier, no trial.
 	var adv := _veteran(&"mage", MAGE)
 	adv.class_id = &"pyromancer"
-	check(not adv.class_change_open(), "not after advancing")
-	GameState.player.class_change_used = true
-	GameState.save_game()
-	GameState.load_game(1)
-	check(GameState.player.class_change_used, "saved")
+	var options := GameState.class_change_options(adv)
+	check(not options.is_empty() and options.all(func(d): return d.tier == 2), "tier 2 stays at tier 2")
+	var other: ClassDef = options.filter(func(d): return ClassRegistry.root_of(d.id) != &"mage")[0]
+	check(not GameState.quests.is_done(CharacterData.trial_id(other)) and GameState.change_class(adv, other) and adv.class_id == other.id, "no trial needed")
+	check(adv.get_class_def().tier == 2, "tier kept")
+	# Off limits: secret lines until unlocked, the player's alone; route-only; demigods.
+	var secret := ClassRegistry.get_all().filter(func(d): return d.is_secret and not d.ng_plus_only)
+	for s in secret:
+		check(not GameState.class_change_options(GameState.player).has(s), "%s stays hidden" % s.id)
+	for d in GameState.class_change_options(c) + options:
+		check(d.unique_to == &"" and d.route_allows(), "%s is open to anyone" % d.id)
+	var demigod := CharacterData.new()
+	demigod.class_id = ClassRegistry.get_all().filter(func(d): return d.unique_to != &"")[0].id
+	check(not demigod.can_change_class() and GameState.class_change_options(demigod).is_empty(), "a demigod's class is theirs")
+	# Gear locked to the old class goes back in the bag.
+	var unique := GearItem.new()
+	unique.slot = GearItem.Slot.WEAPON
+	unique.class_lock = &"mage"
+	var m := _veteran(&"mage", MAGE)
+	m.equip(unique)
+	GameState.change_class(m, tank)
+	check(m.get_equipped(GearItem.Slot.WEAPON) != unique, "class-locked gear comes off")
 
 
 func test_save_roundtrip() -> void:

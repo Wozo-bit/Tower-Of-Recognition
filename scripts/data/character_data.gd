@@ -1,6 +1,6 @@
 class_name CharacterData
 extends Resource
-## A character's progression state: level, XP, stat points, class, respecs.
+## A character's progression state: level, XP, stat points, class, stat resets.
 ## Pure data + rules, no UI. Party members/NPCs can reuse this later.
 
 signal stats_changed
@@ -29,8 +29,11 @@ const MP_PER_LEVEL := 2
 const XP_EXPONENT := 1.5
 
 # --- Respec rules ---
-const RESPEC_BASE_COST := 500       # first paid respec
-const RESPEC_COST_MULTIPLIER := 2.0 # each paid respec costs this much more
+## Auto-spend keeps at least this share of spent points in the goal's stats, and
+## the rest goes to what the character's skills use + Health (AUTO_SPEND_MARGIN
+## above the goal's threshold if that's higher).
+const AUTO_SPEND_SHARE := 0.75
+const AUTO_SPEND_MARGIN := 0.05
 
 @export var character_name: String = "Climber"
 @export var level: int = 1
@@ -39,12 +42,8 @@ const RESPEC_COST_MULTIPLIER := 2.0 # each paid respec costs this much more
 @export var stats: StatBlock
 @export var class_id: StringName = &""
 @export var gold: int = 0
-@export var free_respec_pre_class_used: bool = false
-@export var free_respec_post_class_used: bool = false
-@export var paid_respec_count: int = 0
-## The one free class change (Hayden 2026-10-25), offered once the tier-2
-## gate's floor is beaten, while still in a tier-1 class.
-@export var class_change_used: bool = false
+## The class auto-spend builds toward (see goal_options).
+@export var build_goal: StringName = &""
 ## Hired by the floor (Hayden 2026-10-25): gold owed every floor (0 = paid
 ## up front or not hired), floors in a row it went unpaid, and gold owed.
 @export var wage: int = 0
@@ -118,6 +117,8 @@ func unbless() -> void:
 
 
 func curse(id: StringName, level: int, until_floor: int) -> void:
+	if godless():
+		return   # none of them can touch you
 	curse_id = id
 	curse_level = level
 	curse_until_floor = until_floor
@@ -223,6 +224,10 @@ func unequip(slot: int) -> GearItem:
 	return prev
 
 
+func refresh_gear() -> void:
+	_refresh_gear_bonus()
+
+
 func _refresh_gear_bonus() -> void:
 	var was_alive := not is_downed()
 	var total := {}
@@ -307,11 +312,10 @@ func _is_blessed_skill(id: StringName) -> bool:
 	return false
 
 
-## Plain words on what makes this character stronger: the stats their attacks
-## and skills use, and what their next advancement asks for.
-func build_hint() -> String:
+## The two stats this character's attacks and skills lean on most.
+func main_stats() -> Array:
 	if not has_class():
-		return "No class yet: at level %d, the stats you spent points on decide which classes you can pick." % CLASS_UNLOCK_LEVEL
+		return []
 	var uses := {}
 	for s: SkillDef in [SkillLibrary.basic_attack_for_class(class_id)] + all_skills():
 		match s.effect:
@@ -330,7 +334,15 @@ func build_hint() -> String:
 				uses[Stats.Type.INTELLIGENCE] = uses.get(Stats.Type.INTELLIGENCE, 0) + 1
 	var ranked_stats := uses.keys()
 	ranked_stats.sort_custom(func(a, b): return uses[a] > uses[b] or (uses[a] == uses[b] and a < b))
-	var names := ranked_stats.slice(0, 2).map(func(st): return Stats.name_of(st))
+	return ranked_stats.slice(0, 2)
+
+
+## Plain words on what makes this character stronger: the stats their attacks
+## and skills use, and what their next advancement asks for.
+func build_hint() -> String:
+	if not has_class():
+		return "No class yet: at level %d, the stats you spent points on decide which classes you can pick." % CLASS_UNLOCK_LEVEL
+	var names := main_stats().map(func(st): return Stats.name_of(st))
 	var def := get_class_def()
 	var text := "%s: hits and heals mainly with %s." % [def.display_name, " and ".join(names)] if not names.is_empty() \
 		else "%s: supports more than it hits." % def.display_name
@@ -513,6 +525,75 @@ func apply_allocation(pending: Dictionary) -> bool:
 
 
 # =========================================================
+# Auto-spend (Hayden 2026-11-05)
+# =========================================================
+
+## The classes this character could build toward next: every first class before
+## they have one, then the advancements of the class they're in.
+func goal_options() -> Array[ClassDef]:
+	if has_class():
+		return available_advancements()
+	var out: Array[ClassDef] = []
+	var unlocked := GameState.unlocked_secret_classes() if self == GameState.player else []
+	for def in ClassRegistry.get_tier(1):
+		if def.route_allows() and def.unique_to == &"" and (not def.is_secret or unlocked.has(def.id)):
+			out.append(def)
+	out.sort_custom(func(a, b): return a.display_name < b.display_name)
+	return out
+
+
+## Where auto-spend is aiming. The chosen goal, or the only option, or (top of a
+## line) the class they're in. null = there's a choice to make first.
+func goal_class() -> ClassDef:
+	var options := goal_options()
+	for def in options:
+		if def.id == build_goal:
+			return def
+	if options.size() == 1:
+		return options[0]
+	return get_class_def() if options.is_empty() else null
+
+
+func needs_goal_choice() -> bool:
+	return goal_class() == null
+
+
+## How to spend `points` toward `goal`: { Stats.Type: amount }. `already` = points
+## in the UI's pending pool, which count as spent. The goal's stats come first and
+## stay level with each other; once they hold a safe share, the rest goes to what
+## this character fights with, and Health.
+func auto_spend_plan(goal: ClassDef, points: int, already: Dictionary = {}) -> Dictionary:
+	var plan := {}
+	for st in Stats.all():
+		plan[st] = 0
+	var want: Array = goal.required_stats.duplicate() if goal else []
+	if want.is_empty():
+		want = main_stats()
+	var support: Array = main_stats().filter(func(st): return not want.has(st))
+	if not want.has(Stats.Type.HEALTH):
+		support.append(Stats.Type.HEALTH)
+	if want.is_empty():
+		want = support
+		support = []
+	var share := maxf(AUTO_SPEND_SHARE, goal.threshold + AUTO_SPEND_MARGIN) if goal else AUTO_SPEND_SHARE
+	var spent := func(st): return stats.get_allocated(st) + already.get(st, 0) + plan[st]
+	for i in points:
+		var total := 0
+		var in_want := 0
+		for st in Stats.all():
+			total += spent.call(st)
+			if want.has(st):
+				in_want += spent.call(st)
+		var pool: Array = want if support.is_empty() or float(in_want) / float(total + 1) < share else support
+		var pick: int = pool[0]
+		for st in pool:
+			if spent.call(st) < spent.call(pick):
+				pick = st
+		plan[pick] += 1
+	return plan
+
+
+# =========================================================
 # Classes
 # =========================================================
 
@@ -551,13 +632,28 @@ func get_qualifying_classes() -> Array[ClassDef]:
 ## The caller (GameState.take_secret_class) checks it's unlocked.
 func can_take_secret_class(def: ClassDef) -> bool:
 	return def != null and def.is_secret and level >= CLASS_UNLOCK_LEVEL \
-		and class_id != def.id and def.qualifies(stats) and def.route_allows()
+		and not in_line_of(def.id) and def.qualifies(stats) and def.route_allows()
+
+
+## The Unsworn line: no god can bless or curse them (Hayden 2026-11-04).
+func godless() -> bool:
+	return in_line_of(ClassRegistry.GODLESS_LINE)
+
+
+## Is this character already somewhere in `root`'s class line?
+func in_line_of(root: StringName) -> bool:
+	return has_class() and ClassRegistry.is_in_lineage(class_id, root)
 
 
 func take_secret_class(def: ClassDef) -> bool:
 	if not can_take_secret_class(def):
 		return false
-	class_id = def.id
+	# Found late: you join the new line at the tier you've already earned.
+	var tier := get_class_def().tier if has_class() else 1
+	class_id = ClassRegistry.line_at_tier(def.id, tier)
+	if godless():   # no punishment: they simply stop being able to reach you
+		unbless()
+		lift_curse()
 	_apply_class_bonus()
 	battle_row = -1   # use the new class's default row
 	class_chosen.emit(def)
@@ -565,24 +661,38 @@ func take_secret_class(def: ClassDef) -> bool:
 	return true
 
 
-## Can give up their tier-1 class once (see class_change_used): after the
-## tier-2 gate's floor, before advancing. Not the NG+ Ascendant.
-func class_change_open() -> bool:
+## Anyone with a class can change it, any time out of battle, for free
+## (Hayden 2026-11-05). Not a demigod: their class is who they are.
+func can_change_class() -> bool:
 	var def := get_class_def()
-	var gate: Dictionary = ClassRegistry.ADVANCEMENT_GATES.get(2, {})
-	return def != null and def.tier == 1 and class_id != &"ascendant" and not class_change_used 		and not gate.is_empty() and GameState.highest_floor > gate.floor
+	return def != null and def.unique_to == &""
 
 
-## Gives up the class (once) and gets a free respec, then picks again like
-## at level 10 (or takes an unlocked secret class). Learned skills stay.
-func release_class() -> bool:
-	if not class_change_open():
+## The tier this character has earned: the Ascendant counts its open gates.
+func earned_tier() -> int:
+	var def := get_class_def()
+	if def == null:
+		return 1
+	var tier := def.tier
+	if class_id == &"ascendant":
+		for t in ClassRegistry.ADVANCEMENT_GATES:
+			if gate_open(t):
+				tier = maxi(tier, t)
+	return tier
+
+
+## Moves straight to `def`, with no stat check and no trial. GameState.change_class
+## checks that it's on offer and sorts out gear and stat points.
+func change_class(def: ClassDef) -> bool:
+	if def == null or def.id == class_id or not can_change_class():
 		return false
-	class_change_used = true
-	class_id = &""
-	free_respec_pre_class_used = false   # the respec before choosing again is free
+	class_id = def.id
+	if godless():   # the Unsworn line, as in take_secret_class
+		unbless()
+		lift_curse()
 	_apply_class_bonus()
 	battle_row = -1
+	class_chosen.emit(def)
 	stats_changed.emit()
 	return true
 
@@ -709,37 +819,16 @@ func advance_class(def: ClassDef) -> bool:
 # =========================================================
 # Respec
 # =========================================================
-# Rule: 1 free respec before choosing a class, 1 more free after choosing,
-# then each respec costs gold (escalating). The pre-class free respec does
-# not carry over if unused.
-
-func has_free_respec() -> bool:
-	return not free_respec_post_class_used if has_class() else not free_respec_pre_class_used
-
-
-func next_respec_cost() -> int:
-	if has_free_respec():
-		return 0
-	return roundi(RESPEC_BASE_COST * pow(RESPEC_COST_MULTIPLIER, paid_respec_count))
-
+# Free, any time out of battle (Hayden 2026-11-05: he wants to try builds). Your
+# class stays: stat shares are only checked when you first choose or advance.
 
 func can_respec() -> bool:
-	return stats.total_allocated() > 0 and gold >= next_respec_cost()
+	return stats.total_allocated() > 0
 
 
 func respec() -> bool:
 	if not can_respec():
 		return false
-	var was_free := has_free_respec()
-	var cost := next_respec_cost()
-	if was_free:
-		if has_class():
-			free_respec_post_class_used = true
-		else:
-			free_respec_pre_class_used = true
-	else:
-		gold -= cost
-		paid_respec_count += 1
 	var hp_before := current_hp()
 	var mp_before := current_mp()
 	unspent_points += stats.reset_allocated()
@@ -747,6 +836,6 @@ func respec() -> bool:
 	# never knocks anyone out.
 	missing_hp = max_hp() - clampi(hp_before, 0, max_hp())
 	missing_mp = max_mp() - clampi(mp_before, 0, max_mp())
-	respecced.emit(was_free, cost)
+	respecced.emit(true, 0)
 	stats_changed.emit()
 	return true

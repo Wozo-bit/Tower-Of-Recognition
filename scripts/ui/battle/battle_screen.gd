@@ -76,7 +76,7 @@ func _start_battle() -> void:
 	battle.setup(fighters, encounter)
 	battle.turn_started.connect(_on_turn_started)
 	battle.action_resolved.connect(_on_action_resolved)
-	battle.round_started.connect(func(n): _round_label.text = "Round %d" % n)
+	battle.round_started.connect(_on_round_started)
 	battle.battle_ended.connect(_on_battle_ended)
 	battle.intents_changed.connect(_update_intents)
 	battle.unit_joined.connect(_on_unit_joined)
@@ -176,6 +176,16 @@ func _on_turn_started(actor: Combatant) -> void:
 		Tips.show_pending()   # e.g. the first weakness hit
 
 
+func _on_round_started(n: int) -> void:
+	_round_label.text = "Round %d" % n
+	for e in battle.enemies:
+		if e.source_enemy and e.is_alive() and n >= 1 and n <= e.source_enemy.battle_lines.size():
+			_log_line("[color=#%s]%s[/color]" % [UITheme.hex("accent"), e.source_enemy.battle_lines[n - 1]])
+
+
+const HIT_POPUP_GAP := 0.14   # seconds between the numbers of a multi-hit skill
+
+
 func _on_action_resolved(result: Dictionary) -> void:
 	_log_line(result.text)
 	var actor: Combatant = result.get("actor")
@@ -202,7 +212,7 @@ func _on_action_resolved(result: Dictionary) -> void:
 				elif e.get("resisted", false):
 					txt = "resist " + txt
 					col = COLOR_RESIST
-				card.popup(txt, col)
+				card.popup(txt, col, e.get("hit", 0) * HIT_POPUP_GAP)
 			"absorb":
 				card.popup("Absorbed +%d" % e.amount, COLOR_HEAL)
 			"immune":
@@ -214,7 +224,7 @@ func _on_action_resolved(result: Dictionary) -> void:
 			"heal":
 				card.popup("+%d" % e.amount, COLOR_HEAL)
 			"miss":
-				card.popup("Miss", COLOR_MISC)
+				card.popup("Miss", COLOR_MISC, e.get("hit", 0) * HIT_POPUP_GAP)
 			"status":
 				card.popup(result.skill.display_name, COLOR_MISC)
 	if result.type == BattleAction.Type.SWAP_ROW:

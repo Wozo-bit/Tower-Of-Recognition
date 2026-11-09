@@ -30,7 +30,8 @@ enum Targeting { ENEMY_SINGLE, ENEMY_ALL, ALLY_SINGLE, ALLY_ALL, SELF }
 ## Added to the attacker's crit chance for this skill.
 @export var bonus_crit: float = 0.0
 ## Adaptive skills hit with Strength (physical) or Intelligence (magic),
-## whichever is higher for the user. They ignore rows.
+## whichever is higher for the user. They only reach past the front if
+## `ignores_row` is set too.
 @export var adaptive: bool = false
 ## HEAL skills also restore this fraction of the target's max HP (so they stay
 ## useful for low-Intelligence characters).
@@ -65,6 +66,11 @@ enum Targeting { ENEMY_SINGLE, ENEMY_ALL, ALLY_SINGLE, ALLY_ALL, SELF }
 @export var also_turns: int = 0
 ## SUMMON skills: the EnemyDef id called onto the field.
 @export var summon_id: StringName = &""
+## Multi-hit skills: strikes each target this many times (rolled per target).
+## `power` is the total across an average roll, so a flurry isn't stronger than
+## one big hit, only streakier: see hit_power(). 1 and 1 = a normal single hit.
+@export var hits_min: int = 1
+@export var hits_max: int = 1
 
 
 static func make(p_id: StringName, p_name: String, p_desc: String, props: Dictionary = {}) -> SkillDef:
@@ -75,6 +81,15 @@ static func make(p_id: StringName, p_name: String, p_desc: String, props: Dictio
 	for key in props:
 		s.set(key, props[key])
 	return s
+
+
+func is_multi_hit() -> bool:
+	return hits_max > 1
+
+
+## The power of one strike.
+func hit_power() -> float:
+	return power / ((hits_min + hits_max) / 2.0) if is_multi_hit() else power
 
 
 func is_single_target() -> bool:

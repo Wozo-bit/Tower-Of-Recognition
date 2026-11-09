@@ -80,7 +80,7 @@ static func roll_damage(attacker: Combatant, target: Combatant, skill: SkillDef,
 		return { "miss": true, "crit": false, "amount": 0, "elements": elements, "weak": false,
 			"resisted": false, "immune": false, "absorbed": false, "hit": {} }
 
-	var raw := attack_power(attacker, type) * skill.power * rng.randf_range(1.0 - VARIANCE, 1.0 + VARIANCE)
+	var raw := attack_power(attacker, type) * skill.hit_power() * rng.randf_range(1.0 - VARIANCE, 1.0 + VARIANCE)
 	var def := defense_of(target, type) * (1.0 - skill.def_pierce)
 	var dmg := raw * 100.0 / (100.0 + def * DEF_WEIGHT)
 

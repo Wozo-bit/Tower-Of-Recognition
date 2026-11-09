@@ -65,9 +65,9 @@ const TIPS := {
 	&"class": { "topic": &"growth", "title": "Choosing a Class", "places": ["floor", "menu"], "lines": [
 		"You've reached level {class_level}: you can choose a class in {key:party_menu}.",
 		"Which classes you can take depends on your stats. Hidden classes exist too, for those who find the clues." ] },
-	&"class_change": { "topic": &"growth", "title": "One Free Change", "places": ["floor", "menu"], "lines": [
-		"Past floor {class_gate}, each character may give up their first class once, with a free respec, and choose again.",
-		"Look for the Change class button in {key:party_menu}." ] },
+	&"class_change": { "topic": &"growth", "title": "Change Any Time", "places": ["floor", "menu"], "lines": [
+		"Out of battle, anyone can change class for free, to any class at the tier they've earned. Stat points can be reset for free too.",
+		"Look for Change class in {key:party_menu}, and Reset stats on the Stats screen." ] },
 	&"advancement": { "topic": &"growth", "title": "Advancement", "places": ["floor", "menu"], "lines": [
 		"Your class can advance. The Advance button in {key:party_menu} shows each path's requirements: stats, sometimes a route, and a trial quest.",
 		"Advanced classes keep every skill they had and get stronger." ] },
@@ -197,7 +197,7 @@ static func due(id: StringName, place: String, layout: FloorLayout = null) -> bo
 		&"class":
 			return p.can_choose_class()
 		&"class_change":
-			return p.class_change_open()
+			return p.can_change_class()
 		&"advancement":
 			return members.any(func(c): return c.advancement_open())
 		&"quests":

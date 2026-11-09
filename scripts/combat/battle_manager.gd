@@ -91,8 +91,8 @@ var boss_is_miniboss := false
 ## Who a summoning boss calls (normal enemies of its stage).
 var reinforcements: Array[EnemyDef] = []
 const BOSS_MECHANICS: Array[String] = ["summon", "shield", "charge"]
-const BOSS_PHASE_AT := { 1: [0.5], 2: [0.6, 0.3] }
-const BOSS_ENRAGE_DEALT := 1.15
+const BOSS_PHASE_AT := { 1: [0.5], 2: [0.6, 0.3], 3: [0.75, 0.5, 0.25] }
+const BOSS_ENRAGE_DEALT := 1.1
 const BOSS_SHIELD_ROUNDS := 3
 const BOSS_CHARGE_EVERY := 3
 ## Late floors: enemies learn the party's favourite skills. Shared with
@@ -152,6 +152,7 @@ func setup(party_chars: Array[CharacterData], enemy_defs: Array[EnemyDef], seed_
 			e.stats.base[Stats.Type.INTELLIGENCE] = maxi(e.stats.get_base(Stats.Type.INTELLIGENCE), guard)
 	_apply_floor_mod()
 	_setup_boss_mechanics()
+	_setup_late_traits()
 
 
 func _apply_floor_mod() -> void:
@@ -170,6 +171,31 @@ func _apply_floor_mod() -> void:
 		e.hp = e.max_hp
 	xp_mult *= m.get("xp", 1.0)
 	gold_mult *= m.get("gold", 1.0)
+
+
+## The Unfinished: a new weakness and resistance every fight. Echoes: they take
+## up to ECHO_SKILLS damage skills from someone in your party.
+const ECHO_SKILLS := 3
+
+
+func _setup_late_traits() -> void:
+	for e in enemies:
+		if e.has_trait(&"glitched"):
+			var types: Array = Element.Type.values()
+			var weak: int = types[rng.randi_range(0, types.size() - 1)]
+			var resist: int = types[rng.randi_range(0, types.size() - 1)]
+			while resist == weak:
+				resist = types[rng.randi_range(0, types.size() - 1)]
+			e.affinities = { weak: Element.Affinity.WEAK, resist: Element.Affinity.RESIST }
+		if e.has_trait(&"echoing") and not party.is_empty():
+			var source: Combatant = party[rng.randi_range(0, party.size() - 1)]
+			var options := source.skills.filter(func(s): return s.effect == SkillDef.Effect.DAMAGE)
+			for i in mini(ECHO_SKILLS, options.size()):
+				var pick: SkillDef = options.pop_at(rng.randi_range(0, options.size() - 1))
+				if not e.skills.any(func(s): return s.id == pick.id):
+					e.skills.append(pick)
+			e.max_mp = maxi(e.max_mp, 999)
+			e.mp = e.max_mp
 
 
 ## Who a lunging enemy leaps at: a taunter first (Taunt and Guard still protect
@@ -567,53 +593,8 @@ func _resolve_skill(action: BattleAction, result: Dictionary) -> bool:
 				if skill.is_single_target() and guardian and guardian != t:
 					parts.append("%s guards %s" % [guardian.display_name, t.display_name])
 					t = guardian
-					entry.target = t
-				var roll := DamageCalc.roll_damage(actor, t, skill, rng)
-				if roll.miss:
-					entry.kind = "miss"
-					parts.append("%s dodges" % t.display_name)
-				else:
-					_learn(t, roll.hit)
-					if roll.absorbed:
-						entry.kind = "absorb"
-						entry.amount = t.restore_hp(roll.amount)
-						parts.append("%s absorbs it and recovers %d HP" % [t.display_name, entry.amount])
-					elif roll.immune:
-						entry.kind = "immune"
-						parts.append("%s is immune" % t.display_name)
-					else:
-						entry.kind = "damage"
-						var amount: int = maxi(1, roundi(roll.amount * adapt))
-						if t.shielded and roll.weak:
-							t.shielded = false
-							parts.append("the barrier shatters")
-						# Undying: shrugs off one killing blow (Holy and Fire put it down for good).
-						if amount >= t.hp and t.has_trait(&"undying") and not t.undying_used \
-								and not roll.elements.any(func(e): return e in [Element.Type.HOLY, Element.Type.FIRE]):
-							amount = t.hp - 1
-							t.undying_used = true
-							parts.append("%s refuses to die" % t.display_name)
-						entry.amount = t.take_damage(amount)
-						entry.crit = roll.crit
-						entry.weak = roll.weak
-						entry.resisted = roll.resisted
-						entry.killed = not t.is_alive()
-						t.last_attacker = actor
-						# Only enemies stagger (a cursed weakness costs the party damage, not turns).
-						entry.staggered = roll.weak and t.side == Combatant.Side.ENEMY and t.add_stagger()
-						for i in skill.stagger_bonus:
-							if t.side == Combatant.Side.ENEMY and t.add_stagger():
-								entry.staggered = true
-						if skill.lifesteal > 0.0 and entry.amount > 0 and actor.is_alive():
-							var drained := actor.restore_hp(maxi(1, roundi(entry.amount * skill.lifesteal)))
-							if drained > 0:
-								parts.append("%s drains %d HP" % [actor.display_name, drained])
-						if entry.staggered:
-							intents.erase(t)
-						parts.append("%s takes %d%s%s%s%s" % [t.display_name, entry.amount,
-							" (WEAK)" if roll.weak else (" (resisted)" if roll.resisted else ""),
-							" (CRIT)" if roll.crit else "", " and falls" if entry.killed else "",
-							" and is STAGGERED" if entry.staggered else ""])
+				_strike(actor, t, skill, adapt, parts, result)
+				entry = {}   # _strike logged each hit
 			SkillDef.Effect.HEAL:
 				entry.kind = "heal"
 				entry.amount = t.restore_hp(DamageCalc.roll_heal(actor, skill, rng, t))
@@ -649,13 +630,113 @@ func _resolve_skill(action: BattleAction, result: Dictionary) -> bool:
 					t.add_status(skill.also_status, skill.also_turns, skill.status_bonus)
 					parts.append("and %s" % String(skill.also_status))
 				_apply_riders(t, skill, parts)
-		result.entries.append(entry)
+		if not entry.is_empty():
+			result.entries.append(entry)
 
 	result.text = "%s uses %s: %s." % [actor.display_name, skill.display_name, ", ".join(parts)]
 	var phase_line := _check_boss_phases()
 	if phase_line != "":
 		result.text += " " + phase_line
 	return true
+
+
+## Every hit of a damage skill on one target. Multi-hit skills stop when the
+## target falls; each hit rolls its own dodge and crit, and the log adds them up.
+func _strike(actor: Combatant, t: Combatant, skill: SkillDef, adapt: float, parts: PackedStringArray, result: Dictionary) -> void:
+	var multi := skill.is_multi_hit()
+	var hits := rng.randi_range(skill.hits_min, skill.hits_max) if multi else 1
+	var stagger := { "weak": false, "bonus": false }   # once per target, per use
+	var tally := { "total": 0, "landed": 0, "missed": 0, "crits": 0, "weak": false, "resisted": false, "staggered": false, "killed": false }
+	for i in hits:
+		if not t.is_alive():
+			break
+		var entry := _one_hit(actor, t, skill, adapt, parts, stagger, multi)
+		entry["hit"] = i
+		result.entries.append(entry)
+		match entry.kind:
+			"miss":
+				tally.missed += 1
+			"damage":
+				tally.landed += 1
+				tally.total += entry.amount
+				tally.crits += 1 if entry.crit else 0
+				tally.weak = tally.weak or entry.weak
+				tally.resisted = tally.resisted or entry.resisted
+				tally.staggered = tally.staggered or entry.staggered
+				tally.killed = tally.killed or entry.killed
+			_:   # immune or absorbed: the rest would do the same
+				break
+	if not multi:
+		return
+	if tally.landed > 0:
+		parts.append("%s takes %d in %d hit%s%s%s%s%s%s" % [t.display_name, tally.total, tally.landed, "" if tally.landed == 1 else "s",
+			" (WEAK)" if tally.weak else (" (resisted)" if tally.resisted else ""),
+			" (%d CRIT)" % tally.crits if tally.crits > 0 else "",
+			" (%d missed)" % tally.missed if tally.missed > 0 else "",
+			" and falls" if tally.killed else "", " and is STAGGERED" if tally.staggered else ""])
+	elif tally.missed > 0:
+		parts.append("%s dodges them all" % t.display_name)
+
+
+func _one_hit(actor: Combatant, t: Combatant, skill: SkillDef, adapt: float, parts: PackedStringArray, stagger: Dictionary, multi: bool) -> Dictionary:
+	var entry := { "target": t, "kind": "", "amount": 0, "crit": false, "killed": false,
+		"weak": false, "resisted": false, "staggered": false }
+	var roll := DamageCalc.roll_damage(actor, t, skill, rng)
+	if roll.miss:
+		entry.kind = "miss"
+		if not multi:
+			parts.append("%s dodges" % t.display_name)
+		return entry
+	_learn(t, roll.hit)
+	if roll.absorbed:
+		entry.kind = "absorb"
+		entry.amount = t.restore_hp(roll.amount)
+		parts.append("%s absorbs it and recovers %d HP" % [t.display_name, entry.amount])
+		return entry
+	if roll.immune:
+		entry.kind = "immune"
+		parts.append("%s is immune" % t.display_name)
+		return entry
+	entry.kind = "damage"
+	var amount: int = maxi(1, roundi(roll.amount * adapt))
+	if t.shielded and roll.weak:
+		t.shielded = false
+		parts.append("the barrier shatters")
+	# Undying: shrugs off one killing blow (Holy and Fire put it down for good).
+	if amount >= t.hp and t.has_trait(&"undying") and not t.undying_used \
+			and not roll.elements.any(func(e): return e in [Element.Type.HOLY, Element.Type.FIRE]):
+		amount = t.hp - 1
+		t.undying_used = true
+		parts.append("%s refuses to die" % t.display_name)
+	entry.amount = t.take_damage(amount)
+	entry.crit = roll.crit
+	entry.weak = roll.weak
+	entry.resisted = roll.resisted
+	entry.killed = not t.is_alive()
+	t.last_attacker = actor
+	# Only enemies stagger (a cursed weakness costs the party damage, not turns).
+	# A flurry fills the meter like one hit, or it would lock down any boss.
+	if t.side == Combatant.Side.ENEMY:
+		if roll.weak and not stagger.weak:
+			stagger.weak = true
+			entry.staggered = t.add_stagger()
+		if not stagger.bonus:
+			stagger.bonus = true
+			for i in skill.stagger_bonus:
+				if t.add_stagger():
+					entry.staggered = true
+	if skill.lifesteal > 0.0 and entry.amount > 0 and actor.is_alive():
+		var drained := actor.restore_hp(maxi(1, roundi(entry.amount * skill.lifesteal)))
+		if drained > 0 and not multi:
+			parts.append("%s drains %d HP" % [actor.display_name, drained])
+	if entry.staggered:
+		intents.erase(t)
+	if not multi:
+		parts.append("%s takes %d%s%s%s%s" % [t.display_name, entry.amount,
+			" (WEAK)" if roll.weak else (" (resisted)" if roll.resisted else ""),
+			" (CRIT)" if roll.crit else "", " and falls" if entry.killed else "",
+			" and is STAGGERED" if entry.staggered else ""])
+	return entry
 
 
 ## STATUS / HEAL riders: a little HP or MP on top.
@@ -697,8 +778,8 @@ func _summon(actor: Combatant, summon_id: StringName) -> Combatant:
 
 ## Writes what a hit revealed (element -> affinity) into the bestiary.
 func _learn(t: Combatant, hit: Dictionary) -> void:
-	if bestiary == null or t.source_enemy == null:
-		return
+	if bestiary == null or t.source_enemy == null or t.has_trait(&"glitched"):
+		return   # a glitched enemy's weaknesses only last the fight
 	for e in hit:
 		bestiary.record_affinity(t.source_enemy, e, hit[e])
 

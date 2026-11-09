@@ -483,6 +483,188 @@ static func _build() -> Dictionary:
 			"drops": [{"item": &"goddess_tear", "chance": 1.0, "count": 1}, {"item": &"scouting_lens", "chance": 0.35, "count": 1}],
 			"loot_rolls": 2, "loot_luck_bonus": 10, "min_loot_rarity": 1, "unique_chance": 0.08}),
 
+		# --- Floors 61-70: Titans and primordials (Hayden 2026-11-04) ---
+		EnemyDef.make(&"frost_giant", "Frost Giant", {
+			"family": &"titan", "affinities": {EL.ICE: AF.RESIST, EL.FIRE: AF.WEAK},
+			"max_hp": 300, "stats": {S.HEALTH: 16, S.STRENGTH: 22, S.INTELLIGENCE: 5, S.STAMINA: 18, S.AGILITY: 8, S.LUCK: 8},
+			"row": FRONT, "skills": [&"smash", &"frost_bolt"] as Array[StringName], "skill_chance": 0.3,
+			"xp_reward": 110, "gold_reward": 34, "color": Color(0.6, 0.8, 0.95)}),
+		EnemyDef.make(&"fire_giant", "Fire Giant", {
+			"family": &"titan", "affinities": {EL.FIRE: AF.RESIST, EL.ICE: AF.WEAK},
+			"max_hp": 280, "stats": {S.HEALTH: 15, S.STRENGTH: 24, S.INTELLIGENCE: 8, S.STAMINA: 15, S.AGILITY: 9, S.LUCK: 8},
+			"row": FRONT, "skills": [&"smash", &"firebolt"] as Array[StringName], "skill_chance": 0.3,
+			"xp_reward": 110, "gold_reward": 34, "color": Color(0.85, 0.35, 0.2)}),
+		EnemyDef.make(&"cyclops_smith", "Cyclops Smith", {
+			"family": &"titan",
+			"max_hp": 220, "stats": {S.HEALTH: 12, S.STRENGTH: 20, S.INTELLIGENCE: 8, S.STAMINA: 12, S.AGILITY: 14, S.LUCK: 8},
+			"row": REAR, "basic_attack": &"attack_ranged", "skills": [&"stone_shot"] as Array[StringName], "skill_chance": 0.35,
+			"xp_reward": 100, "gold_reward": 30, "color": Color(0.55, 0.5, 0.45)}),
+		EnemyDef.make(&"earthborn_seer", "Earthborn Seer", {
+			"family": &"titan",
+			"max_hp": 180, "stats": {S.HEALTH: 10, S.STRENGTH: 8, S.INTELLIGENCE: 22, S.STAMINA: 10, S.AGILITY: 12, S.LUCK: 8},
+			"row": BACK, "basic_attack": &"attack_magic", "skills": [&"stone_shot", &"heal"] as Array[StringName], "skill_chance": 0.5,
+			"xp_reward": 105, "gold_reward": 32, "color": Color(0.5, 0.6, 0.35)}),
+		EnemyDef.make(&"hecatoncheir", "Hecatoncheir", {
+			"family": &"titan",
+			"max_hp": 620, "stats": {S.HEALTH: 16, S.STRENGTH: 24, S.INTELLIGENCE: 8, S.STAMINA: 18, S.AGILITY: 10, S.LUCK: 8},
+			"row": FRONT, "skills": [&"smash", &"power_strike", &"war_cry"] as Array[StringName], "skill_chance": 0.5,
+			"xp_reward": 380, "gold_reward": 130, "color": Color(0.65, 0.55, 0.4),
+			"is_boss": true, "is_miniboss": true, "loot_rolls": 1}),
+		EnemyDef.make(&"elder_cyclops", "Elder Cyclops", {
+			"family": &"titan",
+			"max_hp": 560, "stats": {S.HEALTH: 14, S.STRENGTH: 22, S.INTELLIGENCE: 14, S.STAMINA: 15, S.AGILITY: 14, S.LUCK: 8},
+			"row": REAR, "basic_attack": &"attack_ranged", "skills": [&"stone_shot", &"earthshatter"] as Array[StringName], "skill_chance": 0.5,
+			"xp_reward": 420, "gold_reward": 140, "color": Color(0.45, 0.45, 0.5),
+			"is_boss": true, "is_miniboss": true, "loot_rolls": 1}),
+		EnemyDef.make(&"cronus", "Cronus", {
+			"family": &"titan",
+			"max_hp": 1300, "stats": {S.HEALTH: 22, S.STRENGTH: 26, S.INTELLIGENCE: 20, S.STAMINA: 20, S.AGILITY: 14, S.LUCK: 12},
+			"row": FRONT, "skills": [&"smash", &"earthshatter", &"heavens_fall"] as Array[StringName], "skill_chance": 0.5,
+			"xp_reward": 1200, "gold_reward": 500, "color": Color(0.8, 0.65, 0.25), "is_boss": true,
+			"lore": "He ate his children to keep his throne. Whatever is left of him still climbs toward the ones who escaped.",
+			"drops": [{"item": &"goddess_tear", "chance": 1.0, "count": 1}, {"item": &"scouting_lens", "chance": 0.35, "count": 1}],
+			"loot_rolls": 2}),
+
+		# --- Floors 71-80: the gods' own soldiers. Never the gods themselves. ---
+		EnemyDef.make(&"einherjar", "Einherjar", {
+			"family": &"host",
+			"max_hp": 290, "stats": {S.HEALTH: 16, S.STRENGTH: 23, S.INTELLIGENCE: 6, S.STAMINA: 17, S.AGILITY: 12, S.LUCK: 8},
+			"row": FRONT, "skills": [&"power_strike", &"war_cry"] as Array[StringName], "skill_chance": 0.35,
+			"xp_reward": 125, "gold_reward": 38, "color": Color(0.75, 0.75, 0.85)}),
+		EnemyDef.make(&"hoplite_of_olympus", "Hoplite of Olympus", {
+			"family": &"host",
+			"max_hp": 300, "stats": {S.HEALTH: 15, S.STRENGTH: 21, S.INTELLIGENCE: 6, S.STAMINA: 22, S.AGILITY: 9, S.LUCK: 8},
+			"row": FRONT, "skills": [&"shield_bash", &"ward"] as Array[StringName], "skill_chance": 0.35,
+			"xp_reward": 125, "gold_reward": 38, "color": Color(0.9, 0.75, 0.4)}),
+		EnemyDef.make(&"ushabti_guard", "Ushabti Guard", {
+			"family": &"host",
+			"max_hp": 240, "stats": {S.HEALTH: 14, S.STRENGTH: 20, S.INTELLIGENCE: 6, S.STAMINA: 16, S.AGILITY: 12, S.LUCK: 8},
+			"row": MIDDLE, "skills": [&"smash"] as Array[StringName], "skill_chance": 0.3,
+			"xp_reward": 115, "gold_reward": 36, "color": Color(0.3, 0.65, 0.65)}),
+		EnemyDef.make(&"valkyrie_lancer", "Valkyrie Lancer", {
+			"family": &"host",
+			"max_hp": 220, "stats": {S.HEALTH: 12, S.STRENGTH: 21, S.INTELLIGENCE: 10, S.STAMINA: 12, S.AGILITY: 18, S.LUCK: 8},
+			"row": REAR, "basic_attack": &"attack_ranged", "skills": [&"piercing_shot"] as Array[StringName], "skill_chance": 0.4,
+			"xp_reward": 125, "gold_reward": 38, "color": Color(0.8, 0.85, 1.0)}),
+		EnemyDef.make(&"temple_oracle", "Temple Oracle", {
+			"family": &"host",
+			"max_hp": 190, "stats": {S.HEALTH: 10, S.STRENGTH: 8, S.INTELLIGENCE: 24, S.STAMINA: 11, S.AGILITY: 12, S.LUCK: 8},
+			"row": BACK, "basic_attack": &"attack_magic", "skills": [&"smite", &"heal"] as Array[StringName], "skill_chance": 0.5,
+			"xp_reward": 130, "gold_reward": 40, "color": Color(1.0, 0.95, 0.6)}),
+		EnemyDef.make(&"valkyrie_captain", "Valkyrie Captain", {
+			"family": &"host",
+			"max_hp": 640, "stats": {S.HEALTH: 15, S.STRENGTH: 25, S.INTELLIGENCE: 12, S.STAMINA: 17, S.AGILITY: 20, S.LUCK: 8},
+			"row": MIDDLE, "skills": [&"piercing_shot", &"war_cry", &"rally"] as Array[StringName], "skill_chance": 0.5,
+			"xp_reward": 460, "gold_reward": 150, "color": Color(0.85, 0.9, 1.0),
+			"is_boss": true, "is_miniboss": true, "loot_rolls": 1}),
+		EnemyDef.make(&"medjay_commander", "Medjay Commander", {
+			"family": &"host",
+			"max_hp": 700, "stats": {S.HEALTH: 17, S.STRENGTH: 24, S.INTELLIGENCE: 10, S.STAMINA: 22, S.AGILITY: 12, S.LUCK: 8},
+			"row": FRONT, "skills": [&"shield_bash", &"ward", &"smash"] as Array[StringName], "skill_chance": 0.5,
+			"xp_reward": 500, "gold_reward": 160, "color": Color(0.25, 0.55, 0.6),
+			"is_boss": true, "is_miniboss": true, "loot_rolls": 1}),
+		EnemyDef.make(&"anointed_champion", "The Anointed Champion", {
+			"family": &"host",
+			"max_hp": 1450, "stats": {S.HEALTH: 23, S.STRENGTH: 28, S.INTELLIGENCE: 22, S.STAMINA: 22, S.AGILITY: 18, S.LUCK: 14},
+			"row": FRONT, "skills": [&"smite", &"judgment_ray", &"power_strike"] as Array[StringName], "skill_chance": 0.5,
+			"xp_reward": 1500, "gold_reward": 600, "color": Color(1.0, 0.85, 0.35), "is_boss": true,
+			"lore": "Every god lent this one a little strength, and none of them will say why.",
+			"drops": [{"item": &"goddess_tear", "chance": 1.0, "count": 1}, {"item": &"scouting_lens", "chance": 0.35, "count": 1}],
+			"loot_rolls": 2}),
+
+		# --- Floors 81-90: The Unfinished. The game starts to show its seams. ---
+		EnemyDef.make(&"unnamed_enemy", "Unnamed Enemy", {
+			"family": &"unfinished",
+			"max_hp": 280, "stats": {S.HEALTH: 15, S.STRENGTH: 23, S.INTELLIGENCE: 14, S.STAMINA: 15, S.AGILITY: 14, S.LUCK: 8},
+			"row": FRONT, "skills": [&"smash"] as Array[StringName], "skill_chance": 0.3,
+			"xp_reward": 140, "gold_reward": 42, "color": Color(0.9, 0.2, 0.9)}),
+		EnemyDef.make(&"placeholder_knight", "Placeholder Knight", {
+			"family": &"unfinished",
+			"max_hp": 340, "stats": {S.HEALTH: 16, S.STRENGTH: 24, S.INTELLIGENCE: 8, S.STAMINA: 20, S.AGILITY: 10, S.LUCK: 8},
+			"row": FRONT, "skills": [&"power_strike", &"war_cry"] as Array[StringName], "skill_chance": 0.35,
+			"xp_reward": 145, "gold_reward": 44, "color": Color(0.7, 0.7, 0.7)}),
+		EnemyDef.make(&"null_sprite", "Null Sprite", {
+			"family": &"unfinished",
+			"max_hp": 200, "stats": {S.HEALTH: 10, S.STRENGTH: 10, S.INTELLIGENCE: 24, S.STAMINA: 10, S.AGILITY: 20, S.LUCK: 8},
+			"row": BACK, "basic_attack": &"attack_magic", "skills": [&"shadow_bolt", &"spark"] as Array[StringName], "skill_chance": 0.5,
+			"xp_reward": 140, "gold_reward": 42, "color": Color(0.1, 0.1, 0.1)}),
+		EnemyDef.make(&"debug_archer", "Debug Archer", {
+			"family": &"unfinished",
+			"max_hp": 230, "stats": {S.HEALTH: 12, S.STRENGTH: 20, S.INTELLIGENCE: 10, S.STAMINA: 12, S.AGILITY: 20, S.LUCK: 8},
+			"row": REAR, "basic_attack": &"attack_ranged", "skills": [&"piercing_shot"] as Array[StringName], "skill_chance": 0.4,
+			"xp_reward": 140, "gold_reward": 42, "color": Color(0.2, 0.95, 0.3)}),
+		EnemyDef.make(&"deprecated_guardian", "Deprecated Guardian", {
+			"family": &"unfinished",
+			"max_hp": 760, "stats": {S.HEALTH: 17, S.STRENGTH: 26, S.INTELLIGENCE: 14, S.STAMINA: 20, S.AGILITY: 12, S.LUCK: 8},
+			"row": FRONT, "skills": [&"smash", &"war_cry", &"earthshatter"] as Array[StringName], "skill_chance": 0.5,
+			"xp_reward": 560, "gold_reward": 170, "color": Color(0.55, 0.55, 0.6),
+			"is_boss": true, "is_miniboss": true, "loot_rolls": 1}),
+		EnemyDef.make(&"unfinished_giant", "Unfinished Giant", {
+			"family": &"unfinished",
+			"max_hp": 840, "stats": {S.HEALTH: 18, S.STRENGTH: 27, S.INTELLIGENCE: 12, S.STAMINA: 20, S.AGILITY: 10, S.LUCK: 8},
+			"row": FRONT, "skills": [&"smash", &"doom_wave"] as Array[StringName], "skill_chance": 0.5,
+			"xp_reward": 600, "gold_reward": 180, "color": Color(0.95, 0.3, 0.75),
+			"is_boss": true, "is_miniboss": true, "loot_rolls": 1}),
+		EnemyDef.make(&"first_draft", "The First Draft", {
+			"family": &"unfinished",
+			"max_hp": 1600, "stats": {S.HEALTH: 24, S.STRENGTH: 28, S.INTELLIGENCE: 26, S.STAMINA: 22, S.AGILITY: 16, S.LUCK: 14},
+			"row": FRONT, "skills": [&"doom_wave", &"meteor", &"smash"] as Array[StringName], "skill_chance": 0.5,
+			"xp_reward": 1800, "gold_reward": 700, "color": Color(0.85, 0.1, 0.85), "is_boss": true,
+			"lore": "The tower, the way it was meant to be before someone changed their mind. It isn't angry. It was never given anger.",
+			"drops": [{"item": &"goddess_tear", "chance": 1.0, "count": 1}, {"item": &"scouting_lens", "chance": 0.35, "count": 1}],
+			"loot_rolls": 2}),
+
+		# --- Floors 91-100: Echoes of past Testers, and the end of the climb. ---
+		EnemyDef.make(&"tester_echo_blade", "Echo of a Tester", {
+			"family": &"echo",
+			"max_hp": 320, "stats": {S.HEALTH: 16, S.STRENGTH: 26, S.INTELLIGENCE: 12, S.STAMINA: 18, S.AGILITY: 14, S.LUCK: 8},
+			"row": FRONT, "skills": [&"power_strike"] as Array[StringName], "skill_chance": 0.5,
+			"xp_reward": 160, "gold_reward": 50, "color": Color(0.55, 0.65, 0.85)}),
+		EnemyDef.make(&"tester_echo_bow", "Echo of a Tester", {
+			"family": &"echo",
+			"max_hp": 250, "stats": {S.HEALTH: 13, S.STRENGTH: 22, S.INTELLIGENCE: 12, S.STAMINA: 13, S.AGILITY: 22, S.LUCK: 8},
+			"row": REAR, "basic_attack": &"attack_ranged", "skill_chance": 0.5,
+			"xp_reward": 160, "gold_reward": 50, "color": Color(0.45, 0.75, 0.75)}),
+		EnemyDef.make(&"tester_echo_spell", "Echo of a Tester", {
+			"family": &"echo",
+			"max_hp": 220, "stats": {S.HEALTH: 12, S.STRENGTH: 10, S.INTELLIGENCE: 28, S.STAMINA: 12, S.AGILITY: 16, S.LUCK: 8},
+			"row": BACK, "basic_attack": &"attack_magic", "skills": [&"shadow_bolt"] as Array[StringName], "skill_chance": 0.5,
+			"xp_reward": 160, "gold_reward": 50, "color": Color(0.65, 0.5, 0.9)}),
+		EnemyDef.make(&"tester_0012", "Tester 0012", {
+			"family": &"echo",
+			"max_hp": 880, "stats": {S.HEALTH: 18, S.STRENGTH: 28, S.INTELLIGENCE: 16, S.STAMINA: 20, S.AGILITY: 16, S.LUCK: 8},
+			"row": FRONT, "skills": [&"power_strike", &"war_cry"] as Array[StringName], "skill_chance": 0.5,
+			"xp_reward": 640, "gold_reward": 200, "color": Color(0.6, 0.7, 0.9),
+			"is_boss": true, "is_miniboss": true, "loot_rolls": 1}),
+		EnemyDef.make(&"tester_0027", "Tester 0027", {
+			"family": &"echo",
+			"max_hp": 800, "stats": {S.HEALTH: 16, S.STRENGTH: 14, S.INTELLIGENCE: 30, S.STAMINA: 16, S.AGILITY: 18, S.LUCK: 8},
+			"row": BACK, "basic_attack": &"attack_magic", "skills": [&"shadow_bolt", &"doom_wave"] as Array[StringName], "skill_chance": 0.5,
+			"xp_reward": 680, "gold_reward": 210, "color": Color(0.7, 0.55, 0.95),
+			"is_boss": true, "is_miniboss": true, "loot_rolls": 1}),
+		EnemyDef.make(&"tester_0001", "Tester 0001", {
+			"family": &"echo", "affinities": {EL.WIND: AF.WEAK},
+			"max_hp": 980, "stats": {S.HEALTH: 18, S.STRENGTH: 20, S.INTELLIGENCE: 30, S.STAMINA: 20, S.AGILITY: 20, S.LUCK: 10},
+			"row": MIDDLE, "basic_attack": &"attack_magic", "skills": [&"earthshatter", &"doom_wave"] as Array[StringName], "skill_chance": 0.5,
+			"xp_reward": 760, "gold_reward": 240, "color": Color(0.9, 0.9, 0.8),
+			"is_boss": true, "is_miniboss": true, "loot_rolls": 1,
+			"lore": "The first login. Kept very carefully.",
+			"battle_lines": [
+				"[ Wind. It's weak to wind. I never could draw wind. ]",
+				"[ It's going to bring the ground up. It always does that when it's losing. I drew that floor myself. ]",
+				"[ That's not my temper. That's just how you drew it. ]",
+				"[ You fight worse when you don't eat. Did you eat today? ]",
+				"[ Keep going. Don't look at its face. I don't. ]",
+			]}),
+		EnemyDef.make(&"tester_0041", "Tester 0041", {
+			"family": &"echo",
+			"max_hp": 2000, "stats": {S.HEALTH: 26, S.STRENGTH: 30, S.INTELLIGENCE: 30, S.STAMINA: 24, S.AGILITY: 22, S.LUCK: 16},
+			"row": FRONT, "skills": [&"judgment_ray", &"doom_wave", &"power_strike"] as Array[StringName], "skill_chance": 0.5,
+			"xp_reward": 2600, "gold_reward": 1000, "color": Color(0.95, 0.95, 1.0), "is_boss": true,
+			"lore": "Session length: 11,302 days and counting. Answered an email. Was kept.",
+			"drops": [{"item": &"goddess_tear", "chance": 1.0, "count": 1}, {"item": &"scouting_lens", "chance": 0.35, "count": 1}],
+			"loot_rolls": 2}),
+
 		# --- Summons (called by the Summoner line; scaled by the caster's INT) ---
 		EnemyDef.make(&"wisp", "Wisp", {
 			"family": &"spirit", "max_hp": 70, "stats": {S.INTELLIGENCE: 14, S.STAMINA: 6, S.AGILITY: 14},
@@ -568,6 +750,38 @@ static func _build() -> Dictionary:
 			"lore": "Its lantern went out on floor 25. It has been looking for a new flame on the floors below.",
 			"drops": [{"item": &"goddess_tear", "chance": 0.5, "count": 1}],
 			"loot_rolls": 2, "loot_luck_bonus": 20, "min_loot_rarity": 2, "unique_chance": 0.15}),
+		EnemyDef.make(&"gobbling_king", "The Gobbling King", {
+			"family": &"goblin",
+			"max_hp": 700, "stats": {S.HEALTH: 12, S.STRENGTH: 22, S.STAMINA: 12, S.AGILITY: 12, S.LUCK: 12},
+			"row": FRONT, "skills": [&"smash", &"power_strike"] as Array[StringName],
+			"skill_chance": 0.5, "xp_reward": 500, "gold_reward": 200, "color": Color(0.55, 0.3, 0.75), "is_roaming": true,
+			"lore": "Page 31. Age nine. You gave him so many teeth because you thought it would be funny.",
+			"drops": [{"item": &"goddess_tear", "chance": 0.5, "count": 1}],
+			"loot_rolls": 2, "loot_luck_bonus": 20, "min_loot_rarity": 2, "unique_chance": 0.15}),
+		EnemyDef.make(&"what_sends_them", "What Sends Them", {
+			"family": &"wraith",
+			"max_hp": 1250, "stats": {S.HEALTH: 16, S.INTELLIGENCE: 26, S.STAMINA: 15, S.AGILITY: 14, S.LUCK: 10},
+			"row": BACK, "basic_attack": &"attack_magic", "skills": [&"shadow_bolt", &"doom_wave", &"heal"] as Array[StringName],
+			"skill_chance": 0.55, "xp_reward": 1400, "gold_reward": 500, "color": Color(0.3, 0.3, 0.35), "is_roaming": true,
+			"lore": "It wears a red scarf today. It doesn't seem to know why.",
+			"drops": [{"item": &"goddess_tear", "chance": 0.5, "count": 1}],
+			"loot_rolls": 2, "loot_luck_bonus": 20, "min_loot_rarity": 2, "unique_chance": 0.15}),
+		EnemyDef.make(&"gods_bailiff", "The Gods' Bailiff", {
+			"family": &"host",
+			"max_hp": 1500, "stats": {S.HEALTH: 18, S.STRENGTH: 26, S.INTELLIGENCE: 18, S.STAMINA: 20, S.AGILITY: 14, S.LUCK: 10},
+			"row": FRONT, "skills": [&"smite", &"shield_bash", &"war_cry"] as Array[StringName],
+			"skill_chance": 0.5, "xp_reward": 1900, "gold_reward": 700, "color": Color(0.85, 0.8, 0.55), "is_roaming": true,
+			"lore": "It's sorry about this. It says so in writing, in triplicate.",
+			"drops": [{"item": &"goddess_tear", "chance": 0.5, "count": 1}],
+			"loot_rolls": 2, "loot_luck_bonus": 20, "min_loot_rarity": 2, "unique_chance": 0.15}),
+		EnemyDef.make(&"missing_entity", "Missing Entity", {
+			"family": &"unfinished",
+			"max_hp": 1800, "stats": {S.HEALTH: 20, S.STRENGTH: 24, S.INTELLIGENCE: 26, S.STAMINA: 20, S.AGILITY: 20, S.LUCK: 12},
+			"row": MIDDLE, "skills": [&"doom_wave", &"smash", &"spark"] as Array[StringName],
+			"skill_chance": 0.55, "xp_reward": 2400, "gold_reward": 900, "color": Color(0.05, 0.05, 0.05), "is_roaming": true,
+			"lore": "ERROR: description not found.",
+			"drops": [{"item": &"goddess_tear", "chance": 0.5, "count": 1}],
+			"loot_rolls": 2, "loot_luck_bonus": 20, "min_loot_rarity": 2, "unique_chance": 0.15}),
 		EnemyDef.make(&"ashen_wyrmling", "Ashen Wyrmling", {
 			"family": &"wyrm",
 			"max_hp": 1200, "stats": {S.HEALTH: 16, S.INTELLIGENCE: 25, S.STAMINA: 16, S.AGILITY: 14, S.LUCK: 10},
@@ -603,6 +817,11 @@ static func get_enemy(id: StringName) -> EnemyDef:
 	if e == null:
 		push_error("EnemyLibrary: unknown enemy '%s'" % id)
 	return e
+
+
+## Adds or replaces an enemy at runtime (New Game+'s mimics of your old party).
+static func register_enemy(def: EnemyDef) -> void:
+	_enemies[def.id] = def
 
 
 static func build_group(ids: Array) -> Array[EnemyDef]:

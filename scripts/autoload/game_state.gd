@@ -17,7 +17,9 @@ const TITLE_SCENE := "res://scenes/title.tscn"
 ## Beating the boss on this floor completes the game (character goes into the
 ## Hall of Climbers). The design target is 100 floors; 30 for now (tier-2
 ## advancement opens after floor 20, so it gets played).
-const FINAL_FLOOR := 60
+const FINAL_FLOOR := 100
+## The legend says the tower ends here. It doesn't (Hayden 2026-11-04).
+const FALSE_SUMMIT_FLOOR := 60
 ## Each New Game+ cycle multiplies enemy strength by this much more (NG+1 = x1.5).
 const NG_PLUS_SCALE_PER_CYCLE := 0.5
 
@@ -82,7 +84,7 @@ const ADAPT_FROM_FLOOR := 30
 ## Floor -> chance a melee enemy leaps at your back rows on its turn.
 const FLANK_BY_FLOOR := { 11: 0.15, 21: 0.25, 41: 0.35 }
 ## Late bosses get mechanics from these floors (BattleManager.boss_tier).
-const BOSS_TIER_FLOORS := { 30: 1, 50: 2 }
+const BOSS_TIER_FLOORS := { 30: 1, 50: 2, 90: 3 }
 ## What the party has learned about enemies (weaknesses, traits). Per run.
 var bestiary := Bestiary.new()
 ## Active / completed / failed quests and notice-board bounties. Per run.
@@ -188,6 +190,7 @@ func _init() -> void:
 
 ## Wipes all run state back to a fresh level-1 start.
 func reset_run() -> void:
+	_mimic_group.clear()
 	player = CharacterData.new()
 	companions.clear()
 	reserve.clear()
@@ -307,6 +310,7 @@ func start_new_game_plus(record: LegacyRecord, slot: int = -1, p_difficulty: int
 		if g.carries_into_ng_plus():
 			inventory.add_gear(g.duplicate_deep(Resource.DEEP_DUPLICATE_ALL))
 	companions.append(make_childhood_friend(record.friend_name))
+	register_mimics(record.highest_cycle_cleared + 1)
 	for f in record.past_flags:   # the gods remember your last climb
 		story_flags[f] = true
 	ng_plus_cycle = record.highest_cycle_cleared + 1
@@ -449,6 +453,7 @@ func load_game(slot: int = -1) -> bool:
 	checkpoint_floor = S._i(d, "checkpoint_floor", 1, 1, floor_number)
 	floor_seed = S._i(d, "floor_seed", randi())
 	floor_ready = S._b(d, "floor_ready", false)
+	register_mimics(S._i(d, "ng_plus_cycle", 0, 0, 999))   # the save's boss group may name them
 	floor_enemies = S.floor_enemies_from_array(S._a(d, "floor_enemies"))
 	if floor_ready and floor_enemies.is_empty() and not is_rest_floor(floor_number):
 		floor_ready = false   # enemy list was lost/invalid: regenerate the floor
@@ -554,6 +559,9 @@ func load_legacy() -> LegacyBook:
 		r.last_cleared_at = S._s(rd, "last_cleared_at")
 		r.best_play_time_sec = S._f(rd, "best_play_time_sec", 0.0, 0.0)
 		r.friend_name = CharacterData.clean_name(S._s(rd, "friend_name"))
+		for pd in S._a(rd, "party"):
+			if pd is Dictionary and r.party.size() < MAX_PARTY_SIZE:
+				r.party.append(S.character_from_dict(pd))
 		r.slot = S._i(rd, "slot", 1, 1, SLOT_COUNT)
 		r.best_difficulty = S._i(rd, "best_difficulty", -1, -1, Difficulty.Level.HELL)
 		r.ironman_cleared = S._b(rd, "ironman_cleared", false)
@@ -589,6 +597,7 @@ func save_legacy(book: LegacyBook) -> bool:
 	for r in book.records:
 		records.append({
 			"legacy_id": r.legacy_id, "character": SaveSerializer.character_to_dict(r.character),
+			"party": r.party.map(SaveSerializer.character_to_dict),
 			"times_cleared": r.times_cleared, "highest_cycle_cleared": r.highest_cycle_cleared,
 			"first_cleared_at": r.first_cleared_at, "last_cleared_at": r.last_cleared_at,
 			"best_play_time_sec": r.best_play_time_sec, "friend_name": r.friend_name, "slot": r.slot,
@@ -629,6 +638,10 @@ func record_completion() -> LegacyRecord:
 	var friend := childhood_friend()
 	if friend:
 		rec.friend_name = friend.character_name
+	# Who stood beside you: New Game+'s final boss brings mimics of them.
+	rec.party.clear()
+	for c in companions:
+		rec.party.append(c.duplicate_deep(Resource.DEEP_DUPLICATE_ALL))
 	# Unequipped Uniques (bag + companions' gear) go in the vault for New Game+.
 	rec.vault.clear()
 	var loose: Array = inventory.gear.duplicate()
@@ -877,7 +890,9 @@ func party_all_downed() -> bool:
 
 
 func full_restore_party() -> void:
-	for c in battle_party():
+	# Everyone: past the party cap on this floor, and the bench too.
+	player.full_restore()
+	for c in companions + reserve:
 		c.full_restore()
 
 
@@ -928,8 +943,8 @@ func enter_floor(n: int) -> void:
 	if party_size() > room_before:
 		_party_grows()
 	var gate: int = ClassRegistry.ADVANCEMENT_GATES[2].floor
-	if n == gate + 1 and battle_party().any(func(m): return m.class_change_open()):
-		quests.messages.append("Advancement is open. Each climber may also change class once, with a free respec (%s)." % InputBindings.key_name("party_menu"))
+	if n == gate + 1 and battle_party().any(func(m): return m.advancement_open()):
+		quests.messages.append("Advancement is open (%s)." % InputBindings.key_name("party_menu"))
 	floor_seed = randi()
 	floor_ready = false
 	floor_enemies.clear()
@@ -954,6 +969,72 @@ static func flank_chance_for(n: int) -> float:
 		if n >= f:
 			chance = maxf(chance, FLANK_BY_FLOOR[f])
 	return chance
+
+
+## New Game+'s final boss is you: mimics of the character and party that last
+## conquered the tower (Hayden 2026-11-03). Fixed to their real strength, so the
+## floor's scaling is divided out; New Game+ and difficulty scaling still apply.
+const MIMIC_LEADER_HP := 4.0
+const MIMIC_PARTY_HP := 2.0
+const MIMIC_PREFIX := "mimic_"
+var _mimic_group: Array[StringName] = []
+
+
+## The boss group for a boss floor: the stage's, or your mimics on the last floor.
+func boss_group(n: int) -> Array[StringName]:
+	if n == FINAL_FLOOR and not _mimic_group.is_empty():
+		return _mimic_group.duplicate()
+	return StageLibrary.boss_for_floor(n)
+
+
+## Builds this run's mimics from the Hall of Climbers ([] in a first run).
+func register_mimics(cycle: int) -> void:
+	_mimic_group.clear()
+	if cycle <= 0:
+		return
+	var rec := load_legacy().find(player.legacy_id)
+	if rec == null or rec.character == null:
+		return
+	var members: Array = [rec.character] + rec.party
+	for i in members.size():
+		var def := mimic_def(members[i], i, rec if i == 0 else null)
+		EnemyLibrary.register_enemy(def)
+		_mimic_group.append(def.id)
+
+
+## An enemy copy of `c`. `rec` = the leader's Hall record (it's the boss).
+func mimic_def(c: CharacterData, index: int, rec: LegacyRecord) -> EnemyDef:
+	var scale := StageLibrary.guardian_scale(FINAL_FLOOR) / maxf(0.01, float(StageLibrary.THEMES[&"echoes"].power))
+	var d := EnemyDef.new()
+	d.id = StringName("%s%d" % [MIMIC_PREFIX, index])
+	d.display_name = "%s's Echo" % c.character_name
+	if rec and rec.is_god():
+		d.display_name = "%s's Echo" % rec.god_name()
+	d.family = &"echo"
+	d.traits = []
+	d.is_boss = rec != null
+	d.row = c.battle_row if c.battle_row >= 0 else SkillLibrary.default_row_for_class(c.class_id)
+	d.basic_attack = SkillLibrary.basic_attack_for_class(c.class_id).id
+	d.color = Color(0.92, 0.92, 1.0) if rec else Color(0.7, 0.72, 0.85)
+	d.skill_chance = 0.6
+	d.xp_reward = 2600 if rec else 300
+	d.gold_reward = 1000 if rec else 100
+	d.lore = "It has your face. It has been practising."
+	var sk: Array[StringName] = []
+	for s in c.all_skills():
+		if s.effect != SkillDef.Effect.SUMMON and s.faith_cost <= 0:
+			sk.append(s.id)
+	d.skills = sk
+	var st := {}
+	for stat in Stats.all():
+		st[stat] = maxi(1, roundi(c.stats.get_total(stat) / scale))
+	d.stats = st
+	var hp_after := guardian_hp_mult(party_size_at(FINAL_FLOOR)) if rec else normal_hp_mult(party_size_at(FINAL_FLOOR))
+	var wanted := c.max_hp() * (MIMIC_LEADER_HP if rec else MIMIC_PARTY_HP)
+	d.max_hp = maxi(1, roundi(wanted / (scale * Combatant.ENEMY_HP_MULT * hp_after)))
+	if rec:
+		d.drops = [{ "item": &"goddess_tear", "chance": 1.0, "count": 1 }]
+	return d
 
 
 ## This floor's twist (FloorMods), or &"".
@@ -1018,11 +1099,11 @@ func current_layout() -> FloorLayout:
 			floor_enemies.append({ "pos": spawn, "alive": true, "kind": "normal", "group": group })
 		if layout.guardian_spot.x >= 0:
 			var boss_floor := StageLibrary.is_boss_floor(n)
-			var group: Array[StringName] = StageLibrary.boss_for_floor(n) if boss_floor else StageLibrary.miniboss_for_floor(n)
+			var group: Array[StringName] = boss_group(n) if boss_floor else StageLibrary.miniboss_for_floor(n)
 			var full_size := group.size()
 			group.resize(mini(full_size, maxi(1, max_group)))   # escorts match your party's size too
 			if boss_floor and Difficulty.is_hell(difficulty) and full_size > 1:
-				group.append(StageLibrary.boss_for_floor(n)[-1])   # Hell: stage bosses bring an extra escort
+				group.append(boss_group(n)[-1])   # Hell: stage bosses bring an extra escort
 			floor_enemies.append({ "pos": layout.guardian_spot, "alive": not guardian_beaten(n),
 				"kind": "boss" if boss_floor else "miniboss", "group": group })
 		_maybe_spawn_roamer(layout, rng)
@@ -1436,6 +1517,7 @@ func rejoin(c: CharacterData) -> bool:
 	_add_member(c)
 	if c.companion_id == &"childhood_friend":   # they've got something to say about it
 		pending_talks.append({ "dialogue": StoryLibrary.FRIEND_REUNION })
+		_check_friend_mood()
 	return true
 
 
@@ -1443,8 +1525,11 @@ func rejoin(c: CharacterData) -> bool:
 # Routes (Hero / Villain / Vigilante ...) — see RouteLibrary
 # =========================================================
 
-## Placeholder values for the childhood friend (recruits keep theirs in NpcLibrary).
-const CHILDHOOD_FRIEND_VALUES := { "likes": [&"hero"], "dislikes": [&"villain"] }
+## The childhood friend never leaves over your route (Hayden 2026-11-04): your
+## choices change who they become instead (_check_friend_mood, and story scenes
+## that branch on the route). Once a route has this many points, or locks, they
+## notice it in themselves.
+const FRIEND_MOOD_POINTS := 12
 ## A companion who's been warned leaves once a route they dislike has this many
 ## points (or gets locked).
 const COMPANION_LEAVE_POINTS := 20
@@ -1471,7 +1556,7 @@ func lock_route(id: StringName) -> bool:
 ## { "likes": [route ids], "dislikes": [...] } for a companion.
 func companion_values(c: CharacterData) -> Dictionary:
 	if c.companion_id == &"childhood_friend":
-		return CHILDHOOD_FRIEND_VALUES
+		return {}   # they follow you anywhere, and it changes them
 	return NpcLibrary.get_npc(c.companion_id).get("values", {})
 
 
@@ -1493,6 +1578,7 @@ func refuses_to_rejoin(c: CharacterData) -> bool:
 
 ## After the route changes: companions who dislike it warn you first, then leave.
 func _check_companions() -> void:
+	_check_friend_mood()
 	for c in companions + reserve:
 		if not disagrees(c):
 			continue
@@ -1504,6 +1590,20 @@ func _check_companions() -> void:
 		var r := route.current()
 		if route.locked == r or route.points_of(r) >= COMPANION_LEAVE_POINTS:
 			leave_over_route(c)
+
+
+## Your route shapes your friend: one conversation per route, the first time it
+## takes hold. If they're off waiting at a campfire, it waits until they're back.
+func _check_friend_mood() -> void:
+	var r := route.current()
+	if r == &"" or (route.locked != r and route.points_of(r) < FRIEND_MOOD_POINTS):
+		return
+	var flag := StringName("friend_mood_%s" % r)
+	var talk := StringName("friend_shift_%s" % r)
+	if has_flag(flag) or friend_away() or not DialogueLibrary.has_dialogue(talk):
+		return
+	story_flags[flag] = true
+	pending_talks.append({ "dialogue": talk })
 
 
 ## The companion walks away: gear to the bag, waits at rest floors, and won't
@@ -1694,16 +1794,46 @@ func unlocked_secret_classes() -> Array:
 	return out
 
 
-## The player character switches to an unlocked secret class (stat gate applies).
-## The one free class change: they give up their class (gear locked to it
-## goes back in the bag) and pick again.
-func release_class(member: CharacterData) -> bool:
-	if not member.release_class():
+## Every class `member` could change to, by name: the whole of the tier they've
+## earned, with no trial or stat check (Hayden 2026-11-05). Route-only classes
+## need the route. Secret lines are the player's, once unlocked. Demigods' own
+## classes are never on offer.
+func class_change_options(member: CharacterData) -> Array[ClassDef]:
+	var out: Array[ClassDef] = []
+	if not member.can_change_class():
+		return out
+	var unlocked := unlocked_secret_classes() if member == player else []
+	for def in ClassRegistry.get_all():
+		if def.id == member.class_id or def.unique_to != &"" or not def.route_allows():
+			continue
+		var root := ClassRegistry.get_class_def(ClassRegistry.root_of(def.id))
+		if root.is_secret and not unlocked.has(root.id):
+			continue
+		if def.tier == member.earned_tier() or def.id == &"ascendant":
+			out.append(def)
+	out.sort_custom(func(a, b): return a.display_name < b.display_name)
+	return out
+
+
+## What happens to spent points when `member` changes class.
+enum ClassChangeStats { KEEP, REFUND, AUTO_SPEND }
+
+
+func change_class(member: CharacterData, def: ClassDef, points: int = ClassChangeStats.KEEP) -> bool:
+	if not class_change_options(member).has(def) or not member.change_class(def):
 		return false
+	# Gear locked to the old class goes back in the bag.
 	for slot in member.equipment.keys():
 		if not member.get_equipped(slot).can_equip(member):
 			unequip_to_bag(member, slot)
+	if points != ClassChangeStats.KEEP:
+		member.respec()
+	if points == ClassChangeStats.AUTO_SPEND and member.unspent_points > 0:
+		member.apply_allocation(member.auto_spend_plan(def, member.unspent_points))
 	return true
+
+
+## The player character switches to an unlocked secret class (stat gate applies).
 
 
 func take_secret_class(member: CharacterData, class_id: StringName) -> bool:
@@ -1954,6 +2084,119 @@ func unequip_to_bag(member: CharacterData, slot: int) -> bool:
 		return false
 	inventory.add_gear(prev)
 	return true
+
+
+## Takes everything off `member` and puts it in the bag. Returns how many.
+func unequip_all(member: CharacterData) -> int:
+	var n := 0
+	for slot in GearItem.Slot.values():
+		if unequip_to_bag(member, slot):
+			n += 1
+	return n
+
+
+## How much `member` wants each stat: what their class is built on, then what
+## they've put points into.
+func gear_weights(member: CharacterData) -> Dictionary:
+	var out := {}
+	var def := member.get_class_def()
+	var top := 1
+	for s in Stats.all():
+		top = maxi(top, member.stats.get_base(s) + member.stats.get_allocated(s))
+	for s in Stats.all():
+		var w := 0.5 if s == Stats.Type.HEALTH or s == Stats.Type.STAMINA else 0.25
+		w += 1.5 * float(member.stats.get_base(s) + member.stats.get_allocated(s)) / top
+		if def and def.required_stats.has(s):
+			w += 2.0
+		out[s] = w
+	return out
+
+
+## How good `item` is for `member` (higher is better).
+func gear_score(member: CharacterData, item: GearItem) -> float:
+	var weights := gear_weights(member)
+	var score := 0.0
+	for s in item.bonuses:
+		score += float(item.bonuses[s]) * weights.get(s, 0.25)
+	if item.class_lock != &"":
+		score *= 1.5   # made for them, and nobody else can use it
+	if item.relic_of != &"":
+		score *= 1.5   # the god's own gift
+	return score
+
+
+## Everyone's gear and the bag go into one pile, then the active party takes
+## the best fits for their builds, then everyone else. Captains keep theirs.
+## Returns how many pieces were handed out.
+func auto_equip_all() -> int:
+	var active := battle_party()
+	var rest: Array[CharacterData] = []
+	for c in companions + reserve:
+		if not active.has(c):
+			rest.append(c)
+	for m in active + rest:
+		unequip_all(m)
+	return _hand_out_gear(active) + _hand_out_gear(rest)
+
+
+## Best (person, piece) match first, so a mage gets the robe and a tank the plate.
+func _hand_out_gear(group: Array[CharacterData]) -> int:
+	var open := []
+	for m in group:
+		for slot in GearItem.Slot.values():
+			open.append({ "member": m, "slot": slot })
+	var given := 0
+	while true:
+		var best := {}
+		var best_score := 0.0
+		for o in open:
+			for item: GearItem in inventory.gear:
+				if item.slot == o.slot and item.can_equip(o.member):
+					var score := gear_score(o.member, item)
+					if score > best_score:
+						best_score = score
+						best = { "open": o, "item": item }
+		if best.is_empty():
+			return given
+		equip_from_bag(best.open.member, best.item)
+		open.erase(best.open)
+		given += 1
+	return given
+
+
+## A god's own weapon goes with its blessing (Hayden 2026-11-05): you get it when
+## blessed, it grows with the blessing, and the god takes it back if that ends.
+func sync_relic() -> void:
+	if player == null:
+		return
+	var want: StringName = player.blessing_id if LootTable.RELICS.has(player.blessing_id) else &""
+	var held: GearItem = null
+	for slot in GearItem.Slot.values():
+		var worn := player.get_equipped(slot)
+		if worn and worn.relic_of != &"":
+			if worn.relic_of == want:
+				held = worn
+			else:
+				player.unequip(slot)
+				blessings.messages.append("%s is gone." % worn.display_name)
+	for g: GearItem in inventory.gear.duplicate():
+		if g.relic_of != &"":
+			if g.relic_of == want:
+				held = g
+			else:
+				inventory.remove_gear(g)
+				blessings.messages.append("%s is gone." % g.display_name)
+	if want == &"":
+		return
+	var fresh := LootTable.make_relic(want, player.blessing_level, maxi(1, floor_number))
+	if held == null:
+		inventory.add_gear(fresh)
+		blessings.messages.append("%s gives you %s. It's in your bag." % [BeingLibrary.get_being(want).name, fresh.display_name])
+	else:
+		held.rarity = fresh.rarity
+		held.item_level = fresh.item_level
+		held.bonuses = fresh.bonuses
+		player.refresh_gear()
 
 
 ## Classes whose Unique weapon is already in the bag or equipped by someone.

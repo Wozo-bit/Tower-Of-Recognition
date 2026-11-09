@@ -197,6 +197,67 @@ const THEMES := {
 		},
 		"boss": [&"dragon_sovereign", &"fire_drake", &"wyvern"],
 	},
+	# --- Floors 61-100 (Hayden 2026-11-04): past the false summit. ---
+	&"titan_deeps": {
+		"name": "Titanfall", "family": &"titan", "power": 1.25,
+		"hint": "They're older than the gods, and it takes more than one weak spot to stagger them. Lightning and a sharp point are what they remember.",
+		"encounters": [
+			[&"frost_giant", &"cyclops_smith"],
+			[&"fire_giant", &"earthborn_seer"],
+			[&"frost_giant", &"fire_giant", &"cyclops_smith"],
+			[&"fire_giant", &"frost_giant", &"cyclops_smith", &"earthborn_seer"],
+		],
+		"miniboss_floors": {
+			4: [&"hecatoncheir", &"frost_giant", &"earthborn_seer"],
+			9: [&"elder_cyclops", &"fire_giant", &"cyclops_smith"],
+		},
+		"boss": [&"cronus", &"fire_giant", &"frost_giant", &"earthborn_seer"],
+	},
+	&"gods_host": {
+		"name": "The Gods' Host", "family": &"host", "power": 1.3,
+		"hint": "The gods sent soldiers, not themselves. Holy light is wasted on them. Darkness and a heavy blow are not.",
+		"encounters": [
+			[&"einherjar", &"valkyrie_lancer"],
+			[&"hoplite_of_olympus", &"temple_oracle"],
+			[&"einherjar", &"hoplite_of_olympus", &"valkyrie_lancer"],
+			[&"ushabti_guard", &"hoplite_of_olympus", &"valkyrie_lancer", &"temple_oracle"],
+		],
+		"miniboss_floors": {
+			4: [&"valkyrie_captain", &"einherjar", &"valkyrie_lancer"],
+			9: [&"medjay_commander", &"ushabti_guard", &"temple_oracle"],
+		},
+		"boss": [&"anointed_champion", &"hoplite_of_olympus", &"valkyrie_lancer", &"temple_oracle"],
+	},
+	&"the_unfinished": {
+		"name": "The Unfinished", "family": &"unfinished", "power": 1.35,
+		"hint": "Nothing up here was finished. What hurts it changes every time. Scout, or find out the hard way.",
+		"encounters": [
+			[&"unnamed_enemy", &"debug_archer"],
+			[&"placeholder_knight", &"null_sprite"],
+			[&"unnamed_enemy", &"placeholder_knight", &"debug_archer"],
+			[&"placeholder_knight", &"unnamed_enemy", &"debug_archer", &"null_sprite"],
+		],
+		"miniboss_floors": {
+			4: [&"deprecated_guardian", &"unnamed_enemy", &"null_sprite"],
+			9: [&"unfinished_giant", &"placeholder_knight", &"debug_archer"],
+		},
+		"boss": [&"first_draft", &"placeholder_knight", &"debug_archer", &"null_sprite"],
+	},
+	&"echoes": {
+		"name": "Echoes", "family": &"echo", "power": 1.4,
+		"hint": "They climbed here before you. They'll fight you with your own best moves.",
+		"encounters": [
+			[&"tester_echo_blade", &"tester_echo_bow"],
+			[&"tester_echo_blade", &"tester_echo_spell"],
+			[&"tester_echo_blade", &"tester_echo_bow", &"tester_echo_spell"],
+			[&"tester_echo_blade", &"tester_echo_blade", &"tester_echo_bow", &"tester_echo_spell"],
+		],
+		"miniboss_floors": {
+			4: [&"tester_0012", &"tester_0027"],
+			9: [&"tester_0001", &"tester_echo_blade", &"tester_echo_spell"],
+		},
+		"boss": [&"tester_0041", &"tester_echo_blade", &"tester_echo_bow", &"tester_echo_spell"],
+	},
 }
 
 ## Stage slots in climbing order. `themes` = the pool one is picked from each
@@ -211,6 +272,10 @@ const STAGE_SLOTS := [
 	{ "themes": [&"elemental_rift", &"undead_crypt"] },
 	{ "themes": [&"demon_gate", &"celestial_spire", &"dragon_roost"], "group": &"pseudo_god" },
 	{ "themes": [&"demon_gate", &"celestial_spire", &"dragon_roost"], "group": &"pseudo_god" },
+	{ "themes": [&"titan_deeps"] },
+	{ "themes": [&"gods_host"] },
+	{ "themes": [&"the_unfinished"] },
+	{ "themes": [&"echoes"] },
 ]
 
 ## The theme picked for each slot this run (GameState sets and saves it).
@@ -287,6 +352,18 @@ const ROAMING_BOSSES := [
 	{ "id": &"lantern_wraith", "spawn": "random",
 		"origin_floor": 25, "min_floor": 8, "max_floor": 22,
 		"group": [&"lantern_wraith", &"imp_shaman"] },
+	{ "id": &"gobbling_king", "spawn": "secret", "secret_path": &"notebook", "origin_floor": 31, "min_floor": 8, "max_floor": 9999,
+		"group": [&"gobbling_king", &"goblin_archer"],
+		"intro": "Something enormous is coming, with far too many teeth. You know those teeth. You drew them." },
+	{ "id": &"what_sends_them", "spawn": "secret", "secret_path": &"ledger", "origin_floor": 30, "min_floor": 27, "max_floor": 9999,
+		"group": [&"what_sends_them", &"lantern_wraith"],
+		"intro": "A door you didn't notice stands open on this floor. Something has come through to see who's been reading its ledger." },
+	{ "id": &"gods_bailiff", "spawn": "secret", "secret_path": &"godless", "origin_floor": 60, "min_floor": 33, "max_floor": 9999,
+		"group": [&"gods_bailiff", &"temple_oracle"],
+		"intro": "A very polite figure is on this floor, carrying a very long list. Your name is on it." },
+	{ "id": &"missing_entity", "spawn": "secret", "secret_path": &"seams", "origin_floor": 85, "min_floor": 47, "max_floor": 9999,
+		"group": [&"missing_entity", &"null_sprite"],
+		"intro": "Part of this floor is gone. The gap is walking around." },
 	{ "id": &"ashen_wyrmling", "spawn": "secret", "secret_path": &"ashbound",
 		# No real top floor: finding the last clue late must still bring it (Hayden's
 		# run found 2 of 3 clues and never saw it). max_floor is past any tower height.
