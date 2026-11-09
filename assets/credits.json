@@ -15,6 +15,16 @@
 			"files": [
 				"art/backgrounds/title.png"
 			]
+		},
+		{
+			"name": "Portraits: you, the friend, Tess and Marn",
+			"author": "Hayden (made with Claude)",
+			"license": "Own work",
+			"url": "tools/art/portrait.py",
+			"kind": "art",
+			"files": [
+				"art/portraits/*.png"
+			]
 		}
 	]
 }

@@ -10,3 +10,5 @@ the picture.
 
 - `pixpng.py`: the tiny canvas, shapes, 5x7 pixel font and PNG writer.
 - `title.py`: the title screen (640x360, shown at 3x): the tower at night.
+- `portrait.py`: 64x64 portraits (your four looks, the friend's four, Tess, Marn).
+  `python portrait.py --preview` writes 4x previews and a contact sheet instead.

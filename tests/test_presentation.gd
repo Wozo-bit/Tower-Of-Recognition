@@ -164,7 +164,7 @@ func test_assets() -> void:
 	_png(ART + "/enemies/goblin.png")
 	_png(ART + "/portraits/player.png")
 	_png(ART + "/classes/rogue.png")
-	Assets.roots = [Assets.ART_ROOT, ART]
+	Assets.roots = [ART]   # only the test's own files: the game's real portraits would mask these checks
 	check(Assets.texture("enemies", "goblin") == null, "misses are cached until the cache is cleared")
 	Assets.clear_cache()
 	check(Assets.texture("enemies", "goblin") != null, "a dropped-in file is picked up")
@@ -227,6 +227,16 @@ func test_looks(friend: CharacterData) -> void:
 	check(GameState.load_legacy().find(rec.legacy_id).friend_look == 2, "the Hall remembers the friend's look")
 	GameState.start_new_game_plus(GameState.load_legacy().find(rec.legacy_id), 1)
 	check(GameState.player.look == 1 and GameState.childhood_friend().look == 2, "New Game+ keeps both looks")
+	# The game's own portraits (tools/art/portrait.py): every look has one.
+	Assets.roots = [Assets.ART_ROOT]
+	Assets.clear_cache()
+	for n in CharacterData.LOOK_COUNT:
+		check(Assets.has("portraits", Assets.look_id("player", n)) and Assets.has("portraits", Assets.look_id("childhood_friend", n)),
+			"look %d has its portraits" % (n + 1))
+	check(Assets.has("portraits", "tess") and Assets.has("portraits", "marn"), "Tess and Marn have portraits")
+	check(Assets.texture("portraits", "player_0").get_size() == Vector2(64, 64), "portraits are 64x64 pixel art")
+	Assets.roots = [ART]
+	Assets.clear_cache()
 
 
 func test_audio() -> void:
