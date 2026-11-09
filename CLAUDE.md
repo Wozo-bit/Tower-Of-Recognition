@@ -462,7 +462,7 @@ Third playtest BUILT 2026-11-05 (Hayden's picks): change class free, any time ou
   wait there too.
 
 ## Testing
-Every change gets tests in tests/ (26 suites, 5225 checks at last run).
+Every change gets tests in tests/ (26 suites, 5277 checks at last run).
 Run headless from the project folder:
 
     godot --headless --path . --import

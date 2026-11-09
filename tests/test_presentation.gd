@@ -22,6 +22,7 @@ func _ready() -> void:
 	test_themes()
 	test_assets()
 	test_audio()
+	test_real_sounds()
 	test_music_library()
 	test_cut_in_data()
 	test_cut_in_player()
@@ -237,6 +238,22 @@ func test_looks(friend: CharacterData) -> void:
 	check(Assets.texture("portraits", "player_0").get_size() == Vector2(64, 64), "portraits are 64x64 pixel art")
 	Assets.roots = [ART]
 	Assets.clear_cache()
+
+
+## The game's own sound effects (tools/sfx/sounds.py): every core sound exists and loads.
+func test_real_sounds() -> void:
+	print("The game's sounds")
+	var roots := Audio.sfx_roots.duplicate()
+	Audio.sfx_roots = [Audio.SFX_ROOT]
+	Audio.clear_cache()
+	for name in ["ui_click", "system", "notice", "system_glitch", "system_tip", "talk", "encounter", "encounter_boss",
+			"encounter_flash", "hit", "crit", "weak", "stagger", "resist", "miss", "heal", "status", "defend", "item",
+			"down_enemy", "down_ally", "victory", "defeat", "flee", "level_up", "cutin", "stairs", "campfire", "coin",
+			"steal", "caught"]:
+		var files := Audio.variants("sfx", name)
+		check(files.size() == 1 and Audio.load_stream(files[0]) != null, "%s plays" % name)
+	Audio.sfx_roots = roots
+	Audio.clear_cache()
 
 
 func test_audio() -> void:

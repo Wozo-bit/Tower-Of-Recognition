@@ -25,6 +25,16 @@
 			"files": [
 				"art/portraits/*.png"
 			]
+		},
+		{
+			"name": "Sound effects (soft modern)",
+			"author": "Hayden (made with Claude)",
+			"license": "Own work",
+			"url": "tools/sfx/sounds.py",
+			"kind": "sfx",
+			"files": [
+				"audio/sfx/*.wav"
+			]
 		}
 	]
 }
