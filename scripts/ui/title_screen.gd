@@ -334,63 +334,33 @@ func _build() -> void:
 		add_child(art)
 	Audio.play_music(MusicLibrary.title())
 
-	var center := CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(center)
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 14)
-	center.add_child(col)
-
-	var title := Label.new()
-	title.text = GAME_TITLE
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 64)
-	title.add_theme_color_override("font_color", UITheme.color("accent"))
-	title.add_theme_color_override("font_outline_color", UITheme.color("glow"))
-	title.add_theme_constant_override("outline_size", 8)
-	col.add_child(title)
-	var sub := Label.new()
-	sub.text = "How high will you climb?"
-	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	sub.modulate = Color(1, 1, 1, 0.55)
-	col.add_child(sub)
-	col.add_child(_spacer(24))
-
-	_menu = VBoxContainer.new()
-	_menu.add_theme_constant_override("separation", 8)
-	_menu.custom_minimum_size.x = 300
-	col.add_child(_menu)
-	_continue_btn = _menu_button("Continue", _on_continue)
-	_save_info = Label.new()
-	_save_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_save_info.add_theme_font_size_override("font_size", 13)
-	_save_info.modulate = Color(1, 1, 1, 0.55)
-	_menu.add_child(_save_info)
-	_menu_button("New Game", _open_slots.bind("new")).name = "NewGame"
-	_ngplus_btn = _menu_button("New Game+", _open_ng_plus)
-	_menu_button("Settings", func(): _settings.open())
-	_menu_button("Credits", func(): _credits.open(GAME_TITLE))
-	_menu_button("Quit", func(): get_tree().quit())
+	if backdrop:
+		_build_corner_menu()
+	else:
+		_build_center_menu()
 
 	if OS.is_debug_build():
 		var dev := Button.new()
 		dev.text = "Dev Sandbox"
 		dev.flat = true
 		dev.modulate = Color(1, 1, 1, 0.45)
-		dev.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+		dev.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT if backdrop else Control.PRESET_BOTTOM_RIGHT)
 		dev.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-		dev.grow_vertical = Control.GROW_DIRECTION_BEGIN
+		dev.grow_vertical = Control.GROW_DIRECTION_END if backdrop else Control.GROW_DIRECTION_BEGIN
 		dev.offset_right = -16
-		dev.offset_bottom = -12
+		if backdrop:
+			dev.offset_top = 12
+		else:
+			dev.offset_bottom = -12
 		dev.pressed.connect(func(): get_tree().change_scene_to_file(SANDBOX_SCENE))
 		add_child(dev)
 
 	var version := Label.new()
 	version.text = "Prototype build"
 	version.modulate = Color(1, 1, 1, 0.3)
-	version.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	version.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT if backdrop else Control.PRESET_BOTTOM_LEFT)
 	version.offset_left = 16
-	version.offset_top = -32
+	version.offset_top = 12 if backdrop else -32
 	add_child(version)
 
 	_build_slot_panel()
@@ -497,14 +467,89 @@ func _overlay_panel(width: float) -> VBoxContainer:
 	return box
 
 
-func _menu_button(text: String, cb: Callable) -> Button:
+func _menu_button(text: String, cb: Callable, parent: Control = null) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.custom_minimum_size.y = 40
 	b.add_theme_font_size_override("font_size", 20)
 	b.pressed.connect(cb)
-	_menu.add_child(b)
+	(parent if parent else _menu).add_child(b)
 	return b
+
+## No title art: the text logo and the menu in the middle of the screen.
+func _build_center_menu() -> void:
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(center)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 14)
+	center.add_child(col)
+	var title := Label.new()
+	title.text = GAME_TITLE
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 64)
+	title.add_theme_color_override("font_color", UITheme.color("accent"))
+	title.add_theme_color_override("font_outline_color", UITheme.color("glow"))
+	title.add_theme_constant_override("outline_size", 8)
+	col.add_child(title)
+	var sub := Label.new()
+	sub.text = "How high will you climb?"
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub.modulate = Color(1, 1, 1, 0.55)
+	col.add_child(sub)
+	col.add_child(_spacer(24))
+	_menu = VBoxContainer.new()
+	_menu.add_theme_constant_override("separation", 8)
+	_menu.custom_minimum_size.x = 300
+	col.add_child(_menu)
+	_continue_btn = _menu_button("Continue", _on_continue)
+	_add_save_info(_menu)
+	_menu_button("New Game", _open_slots.bind("new")).name = "NewGame"
+	_ngplus_btn = _menu_button("New Game+", _open_ng_plus)
+	_menu_button("Settings", func(): _settings.open())
+	_menu_button("Credits", func(): _credits.open(GAME_TITLE))
+	_menu_button("Quit", func(): get_tree().quit())
+
+
+## Title art (it carries the logo, Hayden 2026-11-09): three buttons in each
+## bottom corner, beside the logo, so the scene stays clear.
+func _build_corner_menu() -> void:
+	_menu = _corner_column(Control.PRESET_BOTTOM_LEFT)
+	_continue_btn = _menu_button("Continue", _on_continue)
+	_menu_button("New Game", _open_slots.bind("new")).name = "NewGame"
+	_ngplus_btn = _menu_button("New Game+", _open_ng_plus)
+	var right := _corner_column(Control.PRESET_BOTTOM_RIGHT)
+	_menu_button("Settings", func(): _settings.open(), right)
+	_menu_button("Credits", func(): _credits.open(GAME_TITLE), right)
+	_menu_button("Quit", func(): get_tree().quit(), right)
+	_save_info = Label.new()
+	_save_info.add_theme_font_size_override("font_size", 13)
+	_save_info.modulate = Color(1, 1, 1, 0.55)
+	_menu.add_child(_save_info)
+	_menu.move_child(_save_info, 0)
+
+
+func _corner_column(preset: Control.LayoutPreset) -> VBoxContainer:
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 6)
+	col.custom_minimum_size.x = 220
+	col.set_anchors_and_offsets_preset(preset)
+	col.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	col.grow_horizontal = Control.GROW_DIRECTION_BEGIN if preset == Control.PRESET_BOTTOM_RIGHT else Control.GROW_DIRECTION_END
+	col.offset_left = -236.0 if preset == Control.PRESET_BOTTOM_RIGHT else 16.0
+	col.offset_right = -16.0 if preset == Control.PRESET_BOTTOM_RIGHT else 236.0
+	col.offset_bottom = -14.0
+	add_child(col)
+	return col
+
+
+func _add_save_info(parent: Control) -> void:
+	_save_info = Label.new()
+	_save_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_save_info.add_theme_font_size_override("font_size", 13)
+	_save_info.modulate = Color(1, 1, 1, 0.55)
+	parent.add_child(_save_info)
+
 
 
 func _heading(text: String) -> Label:

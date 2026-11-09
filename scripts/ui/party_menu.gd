@@ -397,6 +397,11 @@ func _member_row(member: CharacterData) -> Control:
 			rename_btn.text = "Rename"
 			rename_btn.pressed.connect(_open_rename.bind(member))
 			buttons.add_child(rename_btn)
+			var look_btn := Button.new()
+			look_btn.text = "Look"
+			look_btn.tooltip_text = "Change how they look."
+			look_btn.pressed.connect(_open_look.bind(member))
+			buttons.add_child(look_btn)
 		buttons.add_child(_stats_button(member))
 		var skills_btn := Button.new()
 		skills_btn.text = "Skills" + (" (%d)" % member.skill_picks if member.skill_picks > 0 else "")
@@ -480,6 +485,21 @@ func _confirm_ascend(member: CharacterData) -> void:
 		if member.ascend():
 			_say("%s has Ascended!" % member.character_name)
 			CutIns.play(CutInData.ascension(member))
+		_rebuild()
+		dlg.queue_free())
+	dlg.canceled.connect(dlg.queue_free)
+	add_child(dlg)
+	dlg.popup_centered()
+
+
+## Pick another look (player or childhood friend). Applies on OK.
+func _open_look(member: CharacterData) -> void:
+	var dlg := ConfirmationDialog.new()
+	dlg.title = "Look"
+	var picker := LookPicker.new("player" if member == GameState.player else "childhood_friend", member.look)
+	dlg.add_child(picker)
+	dlg.confirmed.connect(func():
+		member.look = picker.look
 		_rebuild()
 		dlg.queue_free())
 	dlg.canceled.connect(dlg.queue_free)

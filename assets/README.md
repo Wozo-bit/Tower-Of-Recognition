@@ -8,6 +8,21 @@ You don't need any code changes. Anything missing keeps its placeholder.
 license. `test_presentation` fails if a file isn't credited or its license
 doesn't allow selling the game (see "Licenses" below).
 
+## Style (Hayden 2026-11-09): pixel art
+
+Draw at these sizes and let the game scale them up. The project uses nearest
+filtering, so pixels stay sharp. Scale by whole numbers where you can (2x, 3x).
+
+| What | Pixel size |
+|---|---|
+| Tiles, map tokens, props | 32×32 |
+| Enemies, portraits, gods, classes | 64×64 |
+| Bosses and roaming bosses | 96×96 |
+| Item and skill icons | 16×16 or 32×32 |
+
+The "suggested size" column below is how big the game shows each picture,
+not the pixel size to draw it at.
+
 ## Art (`assets/art/<kind>/<id>.png`, also .webp / .jpg)
 
 | Folder | File name | Used for | Suggested size |

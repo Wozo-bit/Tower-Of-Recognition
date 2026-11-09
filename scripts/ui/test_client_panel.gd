@@ -19,6 +19,8 @@ var _difficulty: OptionButton
 var _ironman: CheckBox
 var _warning: Label
 var _friend_edit: LineEdit
+var _look: LookPicker
+var _friend_look: LookPicker
 var _answers: Dictionary = {}
 var _sync_lines: VBoxContainer
 var _sync_bar: ProgressBar
@@ -76,6 +78,8 @@ func open() -> void:
 	_done = false
 	_name_edit.text = "Climber"
 	_friend_edit.text = ""
+	_look.set_look(0)
+	_friend_look.set_look(0)
 	_warning.text = ""
 	_flash.color.a = 0.0
 	show()
@@ -166,6 +170,11 @@ func _build_tester() -> Control:
 	_name_edit.max_length = CharacterData.NAME_MAX_LENGTH
 	_name_edit.text_submitted.connect(func(_t): confirm_name())
 	box.add_child(_name_edit)
+	var look_label := Label.new()
+	look_label.text = "Appearance"
+	box.add_child(look_label)
+	_look = LookPicker.new("player")
+	box.add_child(_look)
 	var picks := difficulty_picker(box)
 	_difficulty = picks[0]
 	_ironman = picks[1]
@@ -219,6 +228,8 @@ func _build_trust() -> Control:
 	_friend_edit.placeholder_text = "Leave blank for %s" % GameState.CHILDHOOD_FRIEND_NAME
 	_friend_edit.text_submitted.connect(func(_t): confirm_friend())
 	box.add_child(_friend_edit)
+	_friend_look = LookPicker.new("childhood_friend")
+	box.add_child(_friend_look)
 	var row := _buttons_row(box)
 	_button(row, "Back", back)
 	_button(row, "Use \"%s\"" % GameState.CHILDHOOD_FRIEND_NAME, func():
@@ -298,6 +309,8 @@ func result() -> Dictionary:
 	return {
 		"name": _name_edit.text,
 		"friend": _friend_edit.text,
+		"look": _look.look,
+		"friend_look": _friend_look.look,
 		"difficulty": _difficulty.get_selected_id(),
 		"ironman": _ironman.button_pressed,
 		"answers": _answers.duplicate(),
@@ -309,6 +322,8 @@ func result() -> Dictionary:
 static func begin_run(r: Dictionary, slot: int, flags: Array = []) -> void:
 	GameState.start_new_game(r.get("name", ""), r.get("friend", ""), slot,
 		r.get("difficulty", Difficulty.DEFAULT), r.get("ironman", false))
+	GameState.player.look = clampi(r.get("look", 0), 0, CharacterData.LOOK_COUNT - 1)
+	GameState.childhood_friend().look = clampi(r.get("friend_look", 0), 0, CharacterData.LOOK_COUNT - 1)
 	GameState.apply_setup(r.get("answers", {}), flags)
 
 

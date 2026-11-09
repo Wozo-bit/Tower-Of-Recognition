@@ -140,7 +140,7 @@ func _load_art() -> void:
 		"campfire": Assets.texture("props", "campfire"),
 		"merchant": Assets.texture("props", "merchant"),
 		"board": Assets.texture("props", "board"),
-		"player": Assets.texture("tokens", "player"),
+		"player": Assets.first([["tokens", Assets.look_id("player", GameState.player.look)], ["tokens", "player"]]),
 	}
 
 

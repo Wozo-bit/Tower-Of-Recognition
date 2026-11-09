@@ -310,6 +310,7 @@ func start_new_game_plus(record: LegacyRecord, slot: int = -1, p_difficulty: int
 		if g.carries_into_ng_plus():
 			inventory.add_gear(g.duplicate_deep(Resource.DEEP_DUPLICATE_ALL))
 	companions.append(make_childhood_friend(record.friend_name))
+	childhood_friend().look = record.friend_look
 	register_mimics(record.highest_cycle_cleared + 1)
 	for f in record.past_flags:   # the gods remember your last climb
 		story_flags[f] = true
@@ -559,6 +560,7 @@ func load_legacy() -> LegacyBook:
 		r.last_cleared_at = S._s(rd, "last_cleared_at")
 		r.best_play_time_sec = S._f(rd, "best_play_time_sec", 0.0, 0.0)
 		r.friend_name = CharacterData.clean_name(S._s(rd, "friend_name"))
+		r.friend_look = S._i(rd, "friend_look", 0, 0, CharacterData.LOOK_COUNT - 1)
 		for pd in S._a(rd, "party"):
 			if pd is Dictionary and r.party.size() < MAX_PARTY_SIZE:
 				r.party.append(S.character_from_dict(pd))
@@ -600,7 +602,7 @@ func save_legacy(book: LegacyBook) -> bool:
 			"party": r.party.map(SaveSerializer.character_to_dict),
 			"times_cleared": r.times_cleared, "highest_cycle_cleared": r.highest_cycle_cleared,
 			"first_cleared_at": r.first_cleared_at, "last_cleared_at": r.last_cleared_at,
-			"best_play_time_sec": r.best_play_time_sec, "friend_name": r.friend_name, "slot": r.slot,
+			"best_play_time_sec": r.best_play_time_sec, "friend_name": r.friend_name, "friend_look": r.friend_look, "slot": r.slot,
 			"endings_seen": r.endings_seen.map(func(e): return String(e)),
 			"vault": r.vault.map(SaveSerializer.gear_to_dict),
 			"best_difficulty": r.best_difficulty, "ironman_cleared": r.ironman_cleared,
@@ -638,6 +640,7 @@ func record_completion() -> LegacyRecord:
 	var friend := childhood_friend()
 	if friend:
 		rec.friend_name = friend.character_name
+		rec.friend_look = friend.look
 	# Who stood beside you: New Game+'s final boss brings mimics of them.
 	rec.party.clear()
 	for c in companions:
@@ -728,6 +731,7 @@ func record_fallen() -> LegacyRecord:
 	var friend := childhood_friend()
 	if friend:
 		rec.friend_name = friend.character_name
+		rec.friend_look = friend.look
 	if not save_legacy(book):
 		push_error("Couldn't save the Hall of Climbers")
 	return rec

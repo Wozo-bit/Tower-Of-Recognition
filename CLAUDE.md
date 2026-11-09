@@ -350,6 +350,14 @@ the in-game friend is the game's memory of them. Reveal slowly (bible). Chapter 
 Chapter 10 "Recognition" BUILT 2026-11-05: THE FIRST CLIMB'S STORY IS COMPLETE (first draft). Endings in the bible:
 ask to forget / take it back, then reset, draw (hero), keep (villain), hand the pencil to 0041 (vigilante). New Game+ "The One It Kept" BUILT (ng_why, ng3_* to ng10_*, RETURN_RACK; endings in the bible). God chapters 7-9 BUILT 2026-11-05. ALL THE STORY IS WRITTEN (first draft).
 Next: testing, then Art & Sounds. CLAUDE MAKES THE ART AND SOUND (Hayden 2026-11-05: not an artist); ASK HIM per character or thing ("what should X look like", "any notable details for X").
+ART & SOUND DECISIONS (Hayden 2026-11-09): PIXEL ART (he told his brother pixel style).
+Source = mix of free CC0/CC-BY packs (UI, tiles, icons) + Claude's own pixel art
+(credits.json "Own work"; no AI image generation, so no Steam AI disclosure). Sizes: tiles and
+tokens 32x32, enemies and portraits 64x64, bosses 96x96, icons 16/32; nearest filtering
+(project default_texture_filter = Nearest). Audio = free CC0/CC-BY music libraries (credited) +
+SFX from Kenney CC0 packs or synthesized in code (own work). Order: store essentials first
+(title + logo, portraits of you, the friend, the System, Tess, Marn; first-stage enemies; core SFX).
+Ask for approval before any download (file, source, size).
 Before generating or adding any asset, show him the exact prompts or files for approval; he says what's okay. No budget for an artist on this game (2026-11-05): keep to the base he needs to list it on the stores, spending as little as possible; the plan is passive income, and maybe a hired artist on a next game.
 Chapter 9 "One More Day" + Day 3 memory (floor 90) BUILT 2026-11-05: pages, "it" in your voice, you pick
 what the System hears (ch9_read_*, ch9_told_*; floor 99 and the ending should use them).

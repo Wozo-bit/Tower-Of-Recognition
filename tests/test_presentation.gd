@@ -16,6 +16,7 @@ var _failed := 0
 func _ready() -> void:
 	GameState.save_dir = "user://test_saves_presentation"
 	GameState.unlocks_path = "user://test_saves_presentation_unlocks.json"
+	GameState.legacy_path = "user://test_saves_presentation_hall.json"
 	Tips.path = "user://test_saves_presentation_tips.json"
 	Settings.path = "user://test_saves_presentation_settings.cfg"
 	test_themes()
@@ -31,6 +32,9 @@ func _ready() -> void:
 	test_dialogue_portraits()
 	test_credits()
 	_cleanup()
+	SaveSerializer.delete_file(GameState.legacy_path)
+	for slot in range(1, GameState.SLOT_COUNT + 1):
+		GameState.delete_slot(slot)
 	GameState.reset_run()
 	print("\n==== %d passed, %d failed ====" % [_passed, _failed])
 	get_tree().quit(0 if _failed == 0 else 1)
@@ -174,6 +178,55 @@ func test_assets() -> void:
 	check(Assets.portrait_for(friend) == Assets.texture("classes", "rogue"), "no portrait of their own: their class's art")
 	check(Assets.slug("Old Merchant") == "old_merchant" and Assets.slug("  Odin, the Allfather ") == "odin_the_allfather",
 		"speaker names become file names")
+	test_looks(friend)
+
+
+## Hayden 2026-11-09: you pick your look and the friend's (LookPicker).
+func test_looks(friend: CharacterData) -> void:
+	print("Looks")
+	_png(ART + "/portraits/player_2.png")
+	_png(ART + "/portraits/childhood_friend_1.png")
+	Assets.clear_cache()
+	check(Assets.portrait_for(GameState.player) == Assets.texture("portraits", "player"), "look 0 without its own art: the plain portrait")
+	GameState.player.look = 2
+	check(Assets.portrait_for(GameState.player) == Assets.texture("portraits", "player_2"), "look 2: its own portrait")
+	GameState.player.look = 3
+	check(Assets.portrait_for(GameState.player) == Assets.texture("portraits", "player"), "a look with no art yet falls back")
+	friend.look = 1
+	check(Assets.portrait_for(friend) == Assets.texture("portraits", "childhood_friend_1"), "the friend's chosen look")
+	var picker := LookPicker.new("player", 0)
+	add_child(picker)
+	var got := []
+	picker.changed.connect(func(v): got.append(v))
+	picker.step(-1)
+	check(picker.look == CharacterData.LOOK_COUNT - 1 and got == [CharacterData.LOOK_COUNT - 1], "the picker wraps round")
+	picker.step(1)
+	picker.step(1)
+	picker.step(1)
+	check(picker.look == 2 and picker._art.texture == Assets.texture("portraits", "player_2"), "and shows the art when there is some")
+	picker.step(1)
+	check(picker._art.texture == null and picker._placeholder.visible and picker._placeholder.text == "Look 4", "or a placeholder")
+	picker.queue_free()
+	check(LookPicker.new("player", 99).look == CharacterData.LOOK_COUNT - 1, "out-of-range looks are clamped")
+	# Saved with the character, cleaned on load.
+	var d := SaveSerializer.character_to_dict(GameState.player)
+	check(SaveSerializer.character_from_dict(d).look == 3, "the look is saved")
+	d.look = 42
+	check(SaveSerializer.character_from_dict(d).look == CharacterData.LOOK_COUNT - 1, "a tampered look is clamped")
+	d.erase("look")
+	check(SaveSerializer.character_from_dict(d).look == 0, "older saves get the default look")
+	# The test client hands both looks to the new run.
+	TestClientPanel.begin_run({ "name": "Kai", "friend": "Juno", "look": 2, "friend_look": 3 }, 1)
+	check(GameState.player.look == 2 and GameState.childhood_friend().look == 3, "New Game uses the chosen looks")
+	TestClientPanel.begin_run({ "name": "Kai" }, 1)
+	check(GameState.player.look == 0 and GameState.childhood_friend().look == 0, "no choice: the defaults")
+	# New Game+ keeps the friend's look (the player's rides along on the character).
+	GameState.player.look = 1
+	GameState.childhood_friend().look = 2
+	var rec := GameState.complete_run()
+	check(GameState.load_legacy().find(rec.legacy_id).friend_look == 2, "the Hall remembers the friend's look")
+	GameState.start_new_game_plus(GameState.load_legacy().find(rec.legacy_id), 1)
+	check(GameState.player.look == 1 and GameState.childhood_friend().look == 2, "New Game+ keeps both looks")
 
 
 func test_audio() -> void:

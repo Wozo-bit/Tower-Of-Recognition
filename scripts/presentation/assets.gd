@@ -87,7 +87,12 @@ static func portrait_for(c: CharacterData) -> Texture2D:
 	if c == null:
 		return null
 	var own := "player" if c == GameState.player else String(c.companion_id)
-	return first([["portraits", own], ["classes", c.class_id]])
+	return first([["portraits", "%s_%d" % [own, c.look]], ["portraits", own], ["classes", c.class_id]])
+
+
+## Art id for a chosen look ("player_2"), for pickers and map tokens.
+static func look_id(who: String, look: int) -> String:
+	return "%s_%d" % [who, look]
 
 
 ## A face for whoever is in a battle slot.

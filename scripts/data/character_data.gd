@@ -51,6 +51,11 @@ const AUTO_SPEND_MARGIN := 0.05
 @export var wage_owed: int = 0
 ## An earned title shown with the name ("the Lone Climber"). Only EPITHETS.
 @export var epithet: String = ""
+## Which of the LOOK_COUNT portraits the player (or the childhood friend) uses:
+## portraits/player_<look>.png, portraits/childhood_friend_<look>.png (Hayden
+## 2026-11-09: you pick a look, and you pick the friend's; look 0 is the default).
+@export var look: int = 0
+const LOOK_COUNT := 4
 const SOLO_EPITHET := "the Lone Climber"
 const EPITHETS := [SOLO_EPITHET]
 ## Battle row (Combatant.Row). -1 = use the class default. Saved when changed in battle.

@@ -1,6 +1,20 @@
 {
 	"team": [
-		{ "role": "Game design & development", "name": "Hayden" }
+		{
+			"role": "Game design & development",
+			"name": "Hayden"
+		}
 	],
-	"assets": []
+	"assets": [
+		{
+			"name": "Title screen: the tower at night",
+			"author": "Hayden (made with Claude)",
+			"license": "Own work",
+			"url": "tools/art/title.py",
+			"kind": "art",
+			"files": [
+				"art/backgrounds/title.png"
+			]
+		}
+	]
 }

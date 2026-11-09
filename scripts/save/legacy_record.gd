@@ -16,6 +16,8 @@ extends Resource
 @export var vault: Array[GearItem] = []
 ## The childhood friend's name in that run, so they keep it in New Game+.
 @export var friend_name: String = ""
+## The friend's chosen look (CharacterData.look), kept for New Game+ too.
+@export var friend_look: int = 0
 ## Who fought beside them at the end (New Game+'s final boss copies them).
 @export var party: Array[CharacterData] = []
 ## The save slot this character conquered the tower in. New Game+ reuses it.
